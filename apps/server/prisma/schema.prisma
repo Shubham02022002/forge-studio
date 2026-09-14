@@ -1,0 +1,62 @@
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+enum ProjectStatus {
+    DRAFT
+    CLARIFYING
+    READY
+    GENERATING
+    COMPLETED
+}
+
+model User {
+    id                String    @id @default(uuid())
+    email             String?   @unique
+    name              String?
+    githubId          String?   @unique
+    githubUsername    String?
+    githubAccessToken String? 
+    avatarUrl         String?
+    createdAt         DateTime  @default(now())
+    updatedAt         DateTime  @updatedAt
+    projects          Project[]
+
+    @@index([githubId])
+}
+
+model Project {
+    id          String        @id @default(uuid())
+    userId      String?
+    user        User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    title       String
+    description String?
+    status      ProjectStatus @default(DRAFT)
+    blueprint Json?
+    fileSnapshot Json?
+    githubRepoUrl String?
+    isPublic      Boolean   @default(false)
+    createdAt     DateTime  @default(now())
+    updatedAt     DateTime  @updatedAt
+    messages      Message[]
+
+    @@index([userId])
+}
+
+model Message {
+    id        String   @id @default(uuid())
+    projectId String
+    project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+    role      String 
+    type      String 
+    content   String   @db.Text
+    metadata  Json? 
+    createdAt DateTime @default(now())
+
+    @@index([projectId, createdAt])
+}
