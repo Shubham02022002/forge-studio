@@ -2,6 +2,7 @@ import express, { Express, Request, Response, NextFunction } from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { prisma } from "./config/db.js";
+import aiRoutes from "./routes/ai.routes.js";
 
 dotenv.config();
 
@@ -33,6 +34,8 @@ app.get("/api/health", async (req: Request, res: Response) => {
     });
   }
 });
+
+app.use("/api/ai", aiRoutes);
 
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
   console.error("Unhandled Server Error:", err);

@@ -1,6 +1,7 @@
 import { groq } from "../config/groq.js";
 import { ClarificationResponse, ProductBlueprint } from "../types/ai.js";
-const FAST_MODEL = "llama-3.3-70b-versatile";
+const FAST_MODEL = "openai/gpt-oss-20b";
+const POWER_MODEL = "openai/gpt-oss-120b";
 
 export async function evaluatePromptAmbiguity(
   prompt: string,
@@ -98,7 +99,7 @@ export async function generateProductBlueprint(
   `;
 
   const completion = await groq.chat.completions.create({
-    model: FAST_MODEL,
+    model: POWER_MODEL,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userContext },
