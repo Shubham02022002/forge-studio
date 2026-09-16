@@ -4,6 +4,10 @@ import {
   generateProductBlueprint,
 } from "../services/ai.service.js";
 
+import { streamCodeGeneration } from "../services/codegen.service.js";
+import * as projectService from "../services/project.service.js";
+import { ProductBlueprint } from "../types/ai.js";
+
 export async function clarifyPromptHandler(
   req: Request,
   res: Response,
@@ -44,6 +48,43 @@ export async function generateBlueprintHandler(
       clarifications || {},
     );
     res.status(200).json({ success: true, data: blueprint });
+  } catch (error) {
+    next(error);
+  }
+}
+
+export async function generateCodeHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const { projectId, prompt, blueprint } = req.body;
+
+    if (!projectId || typeof projectId !== "string") {
+      res.status(400).json({ error: "projectId is required" });
+      return;
+    }
+
+    if (!prompt || typeof prompt !== "string") {
+      res.status(400).json({ error: "prompt is required" });
+      return;
+    }
+
+    const project = await projectService.getProjectById(projectId);
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+    
+    await streamCodeGeneration({
+      projectId,
+      prompt,
+      blueprint: (blueprint || project.blueprint) as
+        | ProductBlueprint
+        | undefined,
+      res,
+    });
   } catch (error) {
     next(error);
   }

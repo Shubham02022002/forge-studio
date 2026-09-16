@@ -1,11 +1,14 @@
 import { Router } from "express";
 import {
   createMessageSchema,
+  createProjectSchema,
   projectIdParamSchema,
   updateProjectSchema,
 } from "../types/project.schema.js";
 import { validate, validateParams } from "../middleware/validate.middleware.js";
 import {
+  createProjectHandler,
+  listProjectsHandler,
   addMessageHandler,
   deleteProjectHandler,
   getProjectHandler,
@@ -13,6 +16,9 @@ import {
 } from "../controllers/project.controller.js";
 
 const router = Router();
+
+router.post("/", validate(createProjectSchema), createProjectHandler);
+router.get("/", listProjectsHandler);
 
 router.get("/:id", validateParams(projectIdParamSchema), getProjectHandler);
 router.patch(
@@ -32,3 +38,5 @@ router.post(
   validate(createMessageSchema),
   addMessageHandler,
 );
+
+export default router;
