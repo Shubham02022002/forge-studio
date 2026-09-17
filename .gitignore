@@ -27,3 +27,5 @@ Thumbs.db
 
 # Turborepo Cache
 .turbo/
+
+local-recordings/
