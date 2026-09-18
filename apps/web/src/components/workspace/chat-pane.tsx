@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { ArrowUp, AudioLines, Paperclip, Sparkles } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ArrowUp, Paperclip, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClarificationCard } from "@/components/workspace/clarification-card";
 import { MessageList } from "@/components/workspace/message-list";
+import { TranscriptStrip, VoiceButton } from "@/components/workspace/voice-input";
 import { useBuildSession } from "@/hooks/use-build-session";
+import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
+import type { VoiceTranscriptionResult } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 const starters = [
@@ -27,21 +30,19 @@ const starters = [
   },
 ];
 
+function isTextField(target: EventTarget | null) {
+  const el = target as HTMLElement | null;
+  if (!el || !el.tagName) return false;
+  return (
+    el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable
+  );
+}
+
 export function ChatPane() {
   const [value, setValue] = useState("");
+  const [heard, setHeard] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const { messages, active, busy, error, send, answer } = useBuildSession();
-
-  const awaitingAnswers = active !== null;
-  const locked = busy || awaitingAnswers;
-  const showEmptyState = messages.length === 0 && !busy && !error;
-
-  const blueprintMessage = messages.find((m) => "blueprint" in m);
-  const title =
-    blueprintMessage && "blueprint" in blueprintMessage
-      ? blueprintMessage.blueprint.title
-      : "New project";
-  const status = blueprintMessage ? "Spec ready" : messages.length > 0 ? "Building" : "Draft";
 
   const resize = useCallback(() => {
     const el = textareaRef.current;
@@ -50,13 +51,71 @@ export function ChatPane() {
     el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, []);
 
+  const handleTranscript = useCallback(
+    (result: VoiceTranscriptionResult) => {
+      setHeard(result.rawTranscript);
+      setValue(result.refinedPrompt);
+      requestAnimationFrame(resize);
+      textareaRef.current?.focus();
+    },
+    [resize],
+  );
+
+  const {
+    state: voiceState,
+    duration: voiceDuration,
+    level: voiceLevel,
+    error: voiceError,
+    start: startVoice,
+    stop: stopVoice,
+    cancel: cancelVoice,
+  } = useVoiceRecorder(handleTranscript);
+
+  const awaitingAnswers = active !== null;
+  const locked = busy || awaitingAnswers;
+  const showEmptyState = messages.length === 0 && !busy && !error;
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.code !== "Space" || event.repeat) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      if (isTextField(event.target)) return;
+      event.preventDefault();
+      if (!locked && voiceState === "idle") void startVoice();
+    };
+
+    const onKeyUp = (event: KeyboardEvent) => {
+      if (event.code !== "Space") return;
+      if (voiceState === "recording") stopVoice();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keyup", onKeyUp);
+    };
+  }, [locked, startVoice, stopVoice, voiceState]);
+
+  const blueprintMessage = messages.find((m) => "blueprint" in m);
+  const title =
+    blueprintMessage && "blueprint" in blueprintMessage
+      ? blueprintMessage.blueprint.title
+      : "New project";
+  const status = blueprintMessage
+    ? "Spec ready"
+    : messages.length > 0
+      ? "Building"
+      : "Draft";
+
   const submit = useCallback(() => {
     const text = value.trim();
-    if (!text || locked) return;
+    if (!text || locked || voiceState !== "idle") return;
     setValue("");
+    setHeard(null);
     requestAnimationFrame(resize);
     void send(text);
-  }, [locked, resize, send, value]);
+  }, [locked, resize, send, value, voiceState]);
 
   return (
     <section className="flex w-[404px] shrink-0 flex-col border-r border-line bg-canvas">
@@ -114,6 +173,14 @@ export function ChatPane() {
                 </button>
               ))}
             </div>
+
+            <p className="mt-5 flex items-center gap-1.5 text-[12px] text-faint">
+              Hold
+              <kbd className="rounded border border-line-strong px-1.5 py-0.5 font-mono text-[10px] text-muted">
+                Space
+              </kbd>
+              anywhere to speak instead.
+            </p>
           </div>
         ) : (
           <>
@@ -133,10 +200,22 @@ export function ChatPane() {
       </div>
 
       <div className="shrink-0 px-3 pb-3">
+        {heard && <TranscriptStrip raw={heard} onDismiss={() => setHeard(null)} />}
+
+        {voiceError && (
+          <div className="animate-rise mb-2 rounded-md border border-danger/30 bg-danger/10 px-2.5 py-2">
+            <p className="text-[12px] leading-relaxed text-danger">
+              {voiceError}
+            </p>
+          </div>
+        )}
+
         <div
           className={cn(
-            "rounded-lg border border-line-strong bg-panel transition-shadow duration-200",
-            "focus-within:border-forge-line focus-within:shadow-glow",
+            "rounded-lg border bg-panel transition-shadow duration-200",
+            voiceState === "recording"
+              ? "border-danger/40 shadow-[0_0_0_1px_oklch(0.66_0.2_25/25%)]"
+              : "border-line-strong focus-within:border-forge-line focus-within:shadow-glow",
             locked && "opacity-60",
           )}
         >
@@ -160,7 +239,7 @@ export function ChatPane() {
                 ? "Answer the questions above to continue"
                 : busy
                   ? "Working…"
-                  : "Describe the app you want to build…"
+                  : "Describe the app you want to build, or hold Space to speak…"
             }
             spellCheck={false}
             className="block max-h-[200px] w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-[13px] leading-relaxed text-ink outline-none placeholder:text-faint disabled:cursor-not-allowed"
@@ -177,20 +256,21 @@ export function ChatPane() {
               <Paperclip className="size-3.5" strokeWidth={1.9} />
             </Button>
 
-            <button
-              type="button"
+            <VoiceButton
+              state={voiceState}
+              duration={voiceDuration}
+              level={voiceLevel}
               disabled={locked}
-              className="ml-0.5 inline-flex h-7 items-center gap-1.5 rounded-sm border border-line-strong px-2 text-[11px] font-medium text-muted transition-colors hover:border-forge-line hover:bg-forge-soft hover:text-forge disabled:pointer-events-none disabled:opacity-40"
-            >
-              <AudioLines className="size-3.5" strokeWidth={2} />
-              Hold Space
-            </button>
+              onStart={() => void startVoice()}
+              onStop={stopVoice}
+              onCancel={cancelVoice}
+            />
 
             <Button
               variant="primary"
               size="icon-sm"
               className="ml-auto"
-              disabled={!value.trim() || locked}
+              disabled={!value.trim() || locked || voiceState !== "idle"}
               onClick={submit}
               aria-label="Send"
               title="Send"
@@ -201,7 +281,9 @@ export function ChatPane() {
         </div>
 
         <p className="mt-2 px-0.5 text-[11px] text-faint">
-          Forge may ask follow-up questions before building.
+          {voiceState === "recording"
+            ? "Release Space to transcribe. Right-click to cancel."
+            : "Forge may ask follow-up questions before building."}
         </p>
       </div>
     </section>

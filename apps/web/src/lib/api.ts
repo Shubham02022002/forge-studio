@@ -34,11 +34,15 @@ export class ApiRequestError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
   let res: Response;
   try {
     res = await fetch(`${API_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...init?.headers },
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...init?.headers,
+      },
     });
   } catch {
     throw new ApiRequestError(
@@ -108,5 +112,19 @@ export function generateBlueprint(
   return request<ProductBlueprint>("/api/ai/blueprint", {
     method: "POST",
     body: JSON.stringify({ prompt, clarifications }),
+  });
+}
+
+export interface VoiceTranscriptionResult {
+  rawTranscript: string;
+  refinedPrompt: string;
+}
+
+export function transcribeAudio(audio: Blob, filename = "recording.webm") {
+  const form = new FormData();
+  form.append("audio", audio, filename);
+  return request<VoiceTranscriptionResult>("/api/voice/transcribe", {
+    method: "POST",
+    body: form,
   });
 }
