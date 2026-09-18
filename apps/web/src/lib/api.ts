@@ -128,3 +128,98 @@ export function transcribeAudio(audio: Blob, filename = "recording.webm") {
     body: form,
   });
 }
+
+export interface CreatedProject {
+  id: string;
+  title: string;
+  status: ProjectStatus;
+}
+
+export function createProject(input: {
+  title: string;
+  description?: string;
+  prompt: string;
+}) {
+  return request<CreatedProject>("/api/projects", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export interface GenerationStreamHandlers {
+  onStatus?: (message: string) => void;
+  onChunk?: (text: string) => void;
+  onDone?: (message: string) => void;
+  onError?: (message: string) => void;
+}
+
+function dispatchFrame(frame: string, handlers: GenerationStreamHandlers): void {
+  let event = "message";
+  const data: string[] = [];
+
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event:")) event = line.slice(6).trim();
+    else if (line.startsWith("data:")) data.push(line.slice(5).trim());
+  }
+
+  if (data.length === 0) return;
+
+  let payload: { message?: string; text?: string };
+  try {
+    payload = JSON.parse(data.join("\n")) as { message?: string; text?: string };
+  } catch {
+    return;
+  }
+
+  if (event === "status") handlers.onStatus?.(payload.message ?? "");
+  else if (event === "chunk") handlers.onChunk?.(payload.text ?? "");
+  else if (event === "done") handlers.onDone?.(payload.message ?? "");
+  else if (event === "error")
+    handlers.onError?.(payload.message ?? "Generation failed.");
+}
+
+export async function streamGeneration(
+  input: { projectId: string; prompt: string; blueprint?: ProductBlueprint },
+  handlers: GenerationStreamHandlers,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(`${API_URL}/api/ai/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+    signal,
+  });
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as
+      | { error?: string; message?: string }
+      | null;
+    throw new ApiRequestError(
+      body?.message ?? body?.error ?? `Generation failed (${res.status})`,
+      res.status,
+    );
+  }
+
+  if (!res.body) {
+    throw new ApiRequestError("Streaming is not supported in this browser.");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+
+    let separator = buffer.indexOf("\n\n");
+    while (separator !== -1) {
+      const frame = buffer.slice(0, separator);
+      buffer = buffer.slice(separator + 2);
+      if (frame.trim()) dispatchFrame(frame, handlers);
+      separator = buffer.indexOf("\n\n");
+    }
+  }
+}

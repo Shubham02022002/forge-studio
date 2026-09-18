@@ -1,4 +1,14 @@
-import { Boxes, Check, Layers, Palette, Users } from "lucide-react";
+import {
+  Boxes,
+  Check,
+  Layers,
+  Loader2,
+  Palette,
+  Sparkles,
+  Terminal,
+  Users,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { ProductBlueprint } from "@/lib/api";
 
 function Section({
@@ -21,7 +31,19 @@ function Section({
   );
 }
 
-export function BlueprintCard({ blueprint }: { blueprint: ProductBlueprint }) {
+export function BlueprintCard({
+  blueprint,
+  generating,
+  generated,
+  onGenerate,
+  onBrowseCode,
+}: {
+  blueprint: ProductBlueprint;
+  generating: boolean;
+  generated: boolean;
+  onGenerate: (blueprint: ProductBlueprint) => void;
+  onBrowseCode: () => void;
+}) {
   return (
     <div className="animate-rise rounded-lg border border-line-strong bg-panel">
       <div className="border-b border-line px-3.5 py-3">
@@ -48,9 +70,9 @@ export function BlueprintCard({ blueprint }: { blueprint: ProductBlueprint }) {
 
         <Section icon={Layers} title="Features">
           <ul className="flex flex-col gap-1.5">
-            {blueprint.features.map((feature) => (
+            {blueprint.features.map((feature, index) => (
               <li
-                key={feature}
+                key={index}
                 className="flex gap-2 text-[12px] leading-relaxed text-muted"
               >
                 <Check
@@ -65,9 +87,9 @@ export function BlueprintCard({ blueprint }: { blueprint: ProductBlueprint }) {
 
         <Section icon={Boxes} title="Data model">
           <div className="flex flex-col gap-1.5">
-            {blueprint.entityModels.map((entity) => (
+            {blueprint.entityModels.map((entity, index) => (
               <div
-                key={entity.name}
+                key={index}
                 className="rounded-md border border-line bg-canvas px-2.5 py-2"
               >
                 <div className="font-mono text-[11px] font-medium text-ink">
@@ -91,9 +113,9 @@ export function BlueprintCard({ blueprint }: { blueprint: ProductBlueprint }) {
               blueprint.designSystem.typography.bodyFont,
             ]
               .filter(Boolean)
-              .map((value) => (
+              .map((value, index) => (
                 <span
-                  key={value}
+                  key={index}
                   className="rounded-full border border-line-strong px-2 py-0.5 font-mono text-[10px] text-muted"
                 >
                   {value}
@@ -105,9 +127,9 @@ export function BlueprintCard({ blueprint }: { blueprint: ProductBlueprint }) {
         {blueprint.suggestedPackages.length > 0 && (
           <Section icon={Boxes} title="Packages">
             <div className="flex flex-wrap gap-1.5">
-              {blueprint.suggestedPackages.map((pkg) => (
+              {blueprint.suggestedPackages.map((pkg, index) => (
                 <span
-                  key={pkg}
+                  key={index}
                   className="rounded-sm bg-elevated px-1.5 py-0.5 font-mono text-[10px] text-faint"
                 >
                   {pkg}
@@ -119,9 +141,39 @@ export function BlueprintCard({ blueprint }: { blueprint: ProductBlueprint }) {
       </div>
 
       <div className="border-t border-line px-3.5 py-2.5">
-        <p className="text-[11px] text-faint">
-          Next: generate the codebase into a sandbox.
-        </p>
+        {generated ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={onBrowseCode}
+          >
+            <Terminal className="size-3.5" strokeWidth={1.9} />
+            Browse the code
+          </Button>
+        ) : (
+          <>
+            <Button
+              variant="primary"
+              size="sm"
+              className="w-full"
+              disabled={generating}
+              onClick={() => onGenerate(blueprint)}
+            >
+              {generating ? (
+                <Loader2 className="size-3.5 animate-spin" strokeWidth={2.2} />
+              ) : (
+                <Sparkles className="size-3.5" strokeWidth={1.9} />
+              )}
+              {generating ? "Generating…" : "Generate codebase"}
+            </Button>
+            <p className="mt-2 text-[11px] leading-relaxed text-faint">
+              {generating
+                ? "Files land in the Code tab as each one finishes."
+                : "Writes every file for this spec into the workspace."}
+            </p>
+          </>
+        )}
       </div>
     </div>
   );

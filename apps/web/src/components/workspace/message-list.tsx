@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import { BlueprintCard } from "@/components/workspace/blueprint-card";
 import { ForgeMark } from "@/components/ui/forge-mark";
 import type { BuildMessage } from "@/hooks/use-build-session";
+import type { ProductBlueprint } from "@/lib/api";
 
 function BusyRow() {
   return (
@@ -20,10 +21,18 @@ export function MessageList({
   messages,
   busy,
   error,
+  generating,
+  generated,
+  onGenerate,
+  onBrowseCode,
 }: {
   messages: BuildMessage[];
   busy: boolean;
   error: string | null;
+  generating: boolean;
+  generated: boolean;
+  onGenerate: (blueprint: ProductBlueprint) => void;
+  onBrowseCode: () => void;
 }) {
   const endRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +50,14 @@ export function MessageList({
             </p>
           </div>
         ) : "blueprint" in m ? (
-          <BlueprintCard key={m.id} blueprint={m.blueprint} />
+          <BlueprintCard
+            key={m.id}
+            blueprint={m.blueprint}
+            generating={generating}
+            generated={generated}
+            onGenerate={onGenerate}
+            onBrowseCode={onBrowseCode}
+          />
         ) : (
           <p
             key={m.id}

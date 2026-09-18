@@ -32,6 +32,7 @@ export function useBuildSession() {
   const [active, setActive] = useState<ActiveQuestions | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [prompt, setPrompt] = useState("");
 
   const idRef = useRef(0);
   const roundRef = useRef(0);
@@ -75,6 +76,7 @@ export function useBuildSession() {
       setError(null);
       setBusy(true);
       promptRef.current = text;
+      setPrompt(text);
       answersRef.current = {};
       roundRef.current = 1;
       setActive(null);
@@ -120,10 +122,11 @@ export function useBuildSession() {
     setActive(null);
     setError(null);
     setBusy(false);
+    setPrompt("");
     answersRef.current = {};
     promptRef.current = "";
     roundRef.current = 0;
   }, []);
 
-  return { messages, active, busy, error, send, answer, reset };
+  return { messages, active, busy, error, prompt, send, answer, reset };
 }

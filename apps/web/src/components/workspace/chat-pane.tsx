@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { ClarificationCard } from "@/components/workspace/clarification-card";
 import { MessageList } from "@/components/workspace/message-list";
 import { TranscriptStrip, VoiceButton } from "@/components/workspace/voice-input";
-import { useBuildSession } from "@/hooks/use-build-session";
+import type { useBuildSession } from "@/hooks/use-build-session";
 import { useVoiceRecorder } from "@/hooks/use-voice-recorder";
-import type { VoiceTranscriptionResult } from "@/lib/api";
+import type { ProductBlueprint, VoiceTranscriptionResult } from "@/lib/api";
 import { cn } from "@/lib/cn";
 
 const starters = [
@@ -38,11 +38,23 @@ function isTextField(target: EventTarget | null) {
   );
 }
 
-export function ChatPane() {
+export function ChatPane({
+  session,
+  generating,
+  generated,
+  onGenerate,
+  onBrowseCode,
+}: {
+  session: ReturnType<typeof useBuildSession>;
+  generating: boolean;
+  generated: boolean;
+  onGenerate: (blueprint: ProductBlueprint) => void;
+  onBrowseCode: () => void;
+}) {
   const [value, setValue] = useState("");
   const [heard, setHeard] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const { messages, active, busy, error, send, answer } = useBuildSession();
+  const { messages, active, busy, error, send, answer } = session;
 
   const resize = useCallback(() => {
     const el = textareaRef.current;
@@ -184,7 +196,15 @@ export function ChatPane() {
           </div>
         ) : (
           <>
-            <MessageList messages={messages} busy={busy} error={error} />
+            <MessageList
+              messages={messages}
+              busy={busy}
+              error={error}
+              generating={generating}
+              generated={generated}
+              onGenerate={onGenerate}
+              onBrowseCode={onBrowseCode}
+            />
             {active && (
               <div className="px-4 pb-5">
                 <ClarificationCard
