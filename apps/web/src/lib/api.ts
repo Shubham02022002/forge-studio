@@ -61,3 +61,52 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function getProjects() {
   return request<ProjectSummary[]>("/api/projects");
 }
+
+export type ClarificationCategory = "features" | "auth" | "database" | "design";
+
+export interface ClarificationQuestion {
+  id: string;
+  category: ClarificationCategory;
+  question: string;
+  options: string[];
+  allowCustomInput?: boolean;
+}
+
+export interface ClarificationResponse {
+  isAmbiguous: boolean;
+  completenessScore: number;
+  summary: string;
+  questions?: ClarificationQuestion[];
+}
+
+export interface ProductBlueprint {
+  title: string;
+  description: string;
+  targetAudience: string;
+  designSystem: {
+    primaryColor: string;
+    neutralBase: string;
+    typography: { headingFont: string; bodyFont: string };
+    layoutPattern: "sidebar-layout" | "navbar-layout" | "canvas-layout";
+  };
+  features: string[];
+  entityModels: Array<{ name: string; fields: string[] }>;
+  suggestedPackages: string[];
+}
+
+export function clarifyPrompt(prompt: string) {
+  return request<ClarificationResponse>("/api/ai/clarify", {
+    method: "POST",
+    body: JSON.stringify({ prompt }),
+  });
+}
+
+export function generateBlueprint(
+  prompt: string,
+  clarifications: Record<string, string>,
+) {
+  return request<ProductBlueprint>("/api/ai/blueprint", {
+    method: "POST",
+    body: JSON.stringify({ prompt, clarifications }),
+  });
+}

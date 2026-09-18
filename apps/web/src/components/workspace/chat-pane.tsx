@@ -3,6 +3,9 @@
 import { useCallback, useRef, useState } from "react";
 import { ArrowUp, AudioLines, Paperclip, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ClarificationCard } from "@/components/workspace/clarification-card";
+import { MessageList } from "@/components/workspace/message-list";
+import { useBuildSession } from "@/hooks/use-build-session";
 import { cn } from "@/lib/cn";
 
 const starters = [
@@ -27,7 +30,18 @@ const starters = [
 export function ChatPane() {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-  const showEmptyState = value.trim().length === 0;
+  const { messages, active, busy, error, send, answer } = useBuildSession();
+
+  const awaitingAnswers = active !== null;
+  const locked = busy || awaitingAnswers;
+  const showEmptyState = messages.length === 0 && !busy && !error;
+
+  const blueprintMessage = messages.find((m) => "blueprint" in m);
+  const title =
+    blueprintMessage && "blueprint" in blueprintMessage
+      ? blueprintMessage.blueprint.title
+      : "New project";
+  const status = blueprintMessage ? "Spec ready" : messages.length > 0 ? "Building" : "Draft";
 
   const resize = useCallback(() => {
     const el = textareaRef.current;
@@ -37,17 +51,29 @@ export function ChatPane() {
   }, []);
 
   const submit = useCallback(() => {
+    const text = value.trim();
+    if (!text || locked) return;
     setValue("");
     requestAnimationFrame(resize);
-  }, [resize]);
+    void send(text);
+  }, [locked, resize, send, value]);
 
   return (
     <section className="flex w-[404px] shrink-0 flex-col border-r border-line bg-canvas">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-3">
-        <h1 className="truncate text-[13px] font-medium text-ink">New project</h1>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-faint">
-          <span className="size-1.5 rounded-full bg-faint" />
-          Draft
+        <h1 className="truncate text-[13px] font-medium text-ink">{title}</h1>
+        <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-faint">
+          <span
+            className={cn(
+              "size-1.5 rounded-full",
+              blueprintMessage
+                ? "bg-success"
+                : messages.length > 0
+                  ? "bg-forge animate-[forge-pulse_1.6s_ease-in-out_infinite]"
+                  : "bg-faint",
+            )}
+          />
+          {status}
         </span>
       </header>
 
@@ -90,7 +116,19 @@ export function ChatPane() {
             </div>
           </div>
         ) : (
-          <div className="px-4 py-5" />
+          <>
+            <MessageList messages={messages} busy={busy} error={error} />
+            {active && (
+              <div className="px-4 pb-5">
+                <ClarificationCard
+                  score={active.score}
+                  questions={active.questions}
+                  busy={busy}
+                  onSubmit={(answers) => void answer(answers)}
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -99,11 +137,13 @@ export function ChatPane() {
           className={cn(
             "rounded-lg border border-line-strong bg-panel transition-shadow duration-200",
             "focus-within:border-forge-line focus-within:shadow-glow",
+            locked && "opacity-60",
           )}
         >
           <textarea
             ref={textareaRef}
             value={value}
+            disabled={locked}
             onChange={(e) => {
               setValue(e.target.value);
               resize();
@@ -111,19 +151,26 @@ export function ChatPane() {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                if (value.trim()) submit();
+                submit();
               }
             }}
             rows={1}
-            placeholder="Describe the app you want to build…"
+            placeholder={
+              awaitingAnswers
+                ? "Answer the questions above to continue"
+                : busy
+                  ? "Working…"
+                  : "Describe the app you want to build…"
+            }
             spellCheck={false}
-            className="block max-h-[200px] w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-[13px] leading-relaxed text-ink outline-none placeholder:text-faint"
+            className="block max-h-[200px] w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-[13px] leading-relaxed text-ink outline-none placeholder:text-faint disabled:cursor-not-allowed"
           />
 
           <div className="flex items-center gap-1 px-2 pb-2">
             <Button
               variant="ghost"
               size="icon-sm"
+              disabled={locked}
               title="Attach files"
               aria-label="Attach files"
             >
@@ -132,7 +179,8 @@ export function ChatPane() {
 
             <button
               type="button"
-              className="ml-0.5 inline-flex h-7 items-center gap-1.5 rounded-sm border border-line-strong px-2 text-[11px] font-medium text-muted transition-colors hover:border-forge-line hover:bg-forge-soft hover:text-forge"
+              disabled={locked}
+              className="ml-0.5 inline-flex h-7 items-center gap-1.5 rounded-sm border border-line-strong px-2 text-[11px] font-medium text-muted transition-colors hover:border-forge-line hover:bg-forge-soft hover:text-forge disabled:pointer-events-none disabled:opacity-40"
             >
               <AudioLines className="size-3.5" strokeWidth={2} />
               Hold Space
@@ -142,7 +190,7 @@ export function ChatPane() {
               variant="primary"
               size="icon-sm"
               className="ml-auto"
-              disabled={!value.trim()}
+              disabled={!value.trim() || locked}
               onClick={submit}
               aria-label="Send"
               title="Send"
