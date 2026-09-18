@@ -6,10 +6,10 @@ import aiRoutes from "./routes/ai.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 import voiceRoutes from "./routes/voice.routes.js";
 
-dotenv.config();
+dotenv.config({ override: true, quiet: true });
 
 const app: Express = express();
-const PORT = process.env.PORT || 5000;
+const PORT = Number(process.env.API_PORT ?? process.env.PORT ?? 5000);
 
 app.use(
   cors({
@@ -20,7 +20,7 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get("/api/health", async (req: Request, res: Response) => {
+app.get("/api/health", async (_req: Request, res: Response) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
     res.status(200).json({
@@ -41,7 +41,7 @@ app.use("/api/ai", aiRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/voice", voiceRoutes);
 
-app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
   console.error("Unhandled Server Error:", err);
   res.status(500).json({
     error: "Internal Server Error",
