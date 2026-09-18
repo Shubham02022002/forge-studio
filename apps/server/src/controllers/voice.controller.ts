@@ -1,19 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import { transcribeAndRefineVoice } from "../services/voice.service.js";
 
-interface UploadedAudioFile {
-  buffer: Buffer;
-  originalname: string;
-  mimetype: string;
-  size: number;
-}
-
-interface MulterRequest extends Request {
-  file?: UploadedAudioFile;
-}
-
 export async function transcribeAudioHandler(
-  req: MulterRequest,
+  req: Request,
   res: Response,
   next: NextFunction,
 ): Promise<void> {
