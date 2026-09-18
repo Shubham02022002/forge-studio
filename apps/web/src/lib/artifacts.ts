@@ -39,6 +39,11 @@ export function dedent(raw: string): string {
     .join("\n");
 }
 
+export function normalizeEscaping(text: string): string {
+  if (!text.includes("\\`")) return text;
+  return text.replace(/\\([`$])/g, "$1");
+}
+
 export function parseArtifacts(text: string): ParsedArtifacts {
   if (!text) return EMPTY;
 
@@ -66,7 +71,7 @@ export function parseArtifacts(text: string): ParsedArtifacts {
     const raw = complete
       ? text.slice(opening.end, closeAt)
       : text.slice(opening.end);
-    const body = dedent(raw);
+    const body = normalizeEscaping(dedent(raw));
     const type = /type="([^"]*)"/.exec(opening.attrs)?.[1] ?? "file";
 
     if (type === "file") {

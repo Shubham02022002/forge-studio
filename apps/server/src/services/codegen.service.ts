@@ -1,11 +1,21 @@
 import { Response } from "express";
 import { groq } from "../config/groq.js";
-import { buildCodeGenSystemPrompt } from "../prompts/codegen.prompt.js";
+import {
+  buildCodeGenSystemPrompt,
+  buildCodeGenUserPrompt,
+} from "../prompts/codegen.prompt.js";
 import { ProductBlueprint } from "../types/ai.js";
 import { prisma } from "../config/db.js";
 import { ProjectStatus } from "@prisma/client";
+import {
+  ARTIFACT_CLOSE,
+  buildArtifactPreamble,
+  buildScaffold,
+} from "../templates/scaffold.js";
+import { normalizeEscaping } from "../utils/normalize.js";
 
-const CODE_MODEL = "openai/gpt-oss-120b"; 
+const CODE_MODEL = "openai/gpt-oss-120b";
+const CODE_MAX_TOKENS = 16000;
 
 interface StreamCodeGenOptions {
   projectId: string;
@@ -44,15 +54,20 @@ export async function streamCodeGeneration({
       data: { status: ProjectStatus.GENERATING },
     });
 
-    const systemPrompt = buildCodeGenSystemPrompt(blueprint);
-    const userPrompt = blueprint
-      ? `Generate the complete application for "${blueprint.title}".
-  Overview: ${blueprint.description}
-  Features to implement:
-  ${blueprint.features.map((f) => `- ${f}`).join("\n")}
+    sendEvent("status", { message: "Assembling the project scaffold..." });
 
-  User Original Prompt: ${prompt}`
-      : `Generate the complete application based on: ${prompt}`;
+    const title = blueprint?.title ?? "Generated app";
+    const scaffold = buildScaffold({
+      title,
+      primaryColor: blueprint?.designSystem.primaryColor,
+    });
+
+    const preamble = buildArtifactPreamble(title, scaffold);
+    fullContent += preamble;
+    sendEvent("chunk", { text: preamble });
+
+    const systemPrompt = buildCodeGenSystemPrompt(blueprint);
+    const userPrompt = buildCodeGenUserPrompt(prompt, blueprint);
 
     sendEvent("status", { message: "Streaming code artifacts..." });
 
@@ -63,7 +78,7 @@ export async function streamCodeGeneration({
         { role: "user", content: userPrompt },
       ],
       temperature: 0.2,
-      max_tokens: 8192,
+      max_tokens: CODE_MAX_TOKENS,
       stream: true,
     });
 
@@ -75,12 +90,17 @@ export async function streamCodeGeneration({
       }
     }
 
+    fullContent += ARTIFACT_CLOSE;
+    sendEvent("chunk", { text: ARTIFACT_CLOSE });
+
+    const storedContent = normalizeEscaping(fullContent);
+
     await prisma.message.create({
       data: {
         projectId,
         role: "assistant",
         type: "code",
-        content: fullContent,
+        content: storedContent,
       },
     });
 
