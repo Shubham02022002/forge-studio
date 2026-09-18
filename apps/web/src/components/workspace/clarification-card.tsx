@@ -88,11 +88,11 @@ export function ClarificationCard({
               </p>
 
               <div className="mt-2.5 flex flex-wrap gap-1.5">
-                {q.options.map((option) => {
+                {q.options.map((option, index) => {
                   const active = pick === option;
                   return (
                     <button
-                      key={option}
+                      key={index}
                       type="button"
                       aria-pressed={active}
                       onClick={() =>
