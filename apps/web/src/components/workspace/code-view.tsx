@@ -3,7 +3,52 @@
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import type { GeneratedFile } from "@/lib/artifacts";
-import { cn } from "@/lib/cn";
+import { languageFor } from "@/lib/artifacts";
+import { useHighlighter } from "@/hooks/use-highlighter";
+
+function HighlightedCode({ file }: { file: GeneratedFile }) {
+  const lang = languageFor(file.path);
+  const tokens = useHighlighter(file.content, lang);
+  const lines = file.content.split("\n");
+
+  return (
+    <pre className="min-w-full py-3 font-mono text-[11.5px] leading-[1.65]">
+      {tokens
+        ? tokens.map((tokenLine, index) => (
+            <div key={index} className="flex">
+              <span
+                className="sticky left-0 w-11 shrink-0 select-none bg-canvas pr-3 text-right text-faint tabular-nums"
+              >
+                {index + 1}
+              </span>
+              <code className="whitespace-pre pr-6">
+                {tokenLine.length === 0 ? (
+                  " "
+                ) : (
+                  tokenLine.map((token, j) => (
+                    <span key={j} style={{ color: token.color }}>
+                      {token.content}
+                    </span>
+                  ))
+                )}
+              </code>
+            </div>
+          ))
+        : lines.map((line, index) => (
+            <div key={index} className="flex">
+              <span
+                className="sticky left-0 w-11 shrink-0 select-none bg-canvas pr-3 text-right text-faint tabular-nums"
+              >
+                {index + 1}
+              </span>
+              <code className="whitespace-pre pr-6 text-ink">
+                {line === "" ? " " : line}
+              </code>
+            </div>
+          ))}
+    </pre>
+  );
+}
 
 export function CodeView({ file }: { file: GeneratedFile | null }) {
   const [copied, setCopied] = useState(false);
@@ -17,8 +62,6 @@ export function CodeView({ file }: { file: GeneratedFile | null }) {
       </div>
     );
   }
-
-  const lines = file.content.split("\n");
 
   const copy = () => {
     void navigator.clipboard
@@ -57,22 +100,7 @@ export function CodeView({ file }: { file: GeneratedFile | null }) {
       </div>
 
       <div className="min-h-0 flex-1 overflow-auto">
-        <pre className="min-w-full py-3 font-mono text-[11.5px] leading-[1.65]">
-          {lines.map((line, index) => (
-            <div key={index} className="flex">
-              <span
-                className={cn(
-                  "sticky left-0 w-11 shrink-0 select-none bg-canvas pr-3 text-right text-faint tabular-nums",
-                )}
-              >
-                {index + 1}
-              </span>
-              <code className="whitespace-pre pr-6 text-ink">
-                {line === "" ? " " : line}
-              </code>
-            </div>
-          ))}
-        </pre>
+        <HighlightedCode file={file} />
       </div>
     </div>
   );
