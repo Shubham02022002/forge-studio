@@ -200,8 +200,19 @@ function dispatchFrame(frame: string, handlers: GenerationStreamHandlers): void 
     handlers.onError?.(payload.message ?? "Generation failed.");
 }
 
+export interface GenerationFileInput {
+  path: string;
+  content: string;
+}
+
 export async function streamGeneration(
-  input: { projectId: string; prompt: string; blueprint?: ProductBlueprint },
+  input: {
+    projectId: string;
+    prompt: string;
+    blueprint?: ProductBlueprint;
+    mode?: "create" | "edit";
+    files?: GenerationFileInput[];
+  },
   handlers: GenerationStreamHandlers,
   signal?: AbortSignal,
 ): Promise<void> {

@@ -7,6 +7,32 @@ import {
 import { streamCodeGeneration } from "../services/codegen.service.js";
 import * as projectService from "../services/project.service.js";
 import { ProductBlueprint } from "../types/ai.js";
+import type { ScaffoldFile } from "../templates/scaffold.js";
+
+const MAX_EDIT_FILES = 400;
+const MAX_EDIT_CHARS = 400_000;
+
+function parseEditFiles(value: unknown): ScaffoldFile[] | null {
+  if (!Array.isArray(value) || value.length === 0) return null;
+  if (value.length > MAX_EDIT_FILES) return null;
+
+  const files: ScaffoldFile[] = [];
+  let total = 0;
+
+  for (const entry of value) {
+    if (typeof entry !== "object" || entry === null) return null;
+    const { path, content } = entry as { path?: unknown; content?: unknown };
+    if (typeof path !== "string" || typeof content !== "string") return null;
+    if (path.length === 0 || path.length > 400) return null;
+
+    total += content.length;
+    if (total > MAX_EDIT_CHARS) return null;
+
+    files.push({ path, content });
+  }
+
+  return files;
+}
 
 export async function clarifyPromptHandler(
   req: Request,
@@ -59,7 +85,7 @@ export async function generateCodeHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const { projectId, prompt, blueprint } = req.body;
+    const { projectId, prompt, blueprint, mode, files } = req.body;
 
     if (!projectId || typeof projectId !== "string") {
       res.status(400).json({ error: "projectId is required" });
@@ -76,13 +102,30 @@ export async function generateCodeHandler(
       res.status(404).json({ error: "Project not found" });
       return;
     }
-    
+
+    const editing = mode === "edit";
+    let editFiles: ScaffoldFile[] | undefined;
+
+    if (editing) {
+      const parsed = parseEditFiles(files);
+      if (!parsed) {
+        res.status(400).json({
+          error: "Invalid files payload for edit mode.",
+          message: `mode "edit" requires 1-${MAX_EDIT_FILES} files totalling under ${MAX_EDIT_CHARS} characters.`,
+        });
+        return;
+      }
+      editFiles = parsed;
+    }
+
     await streamCodeGeneration({
       projectId,
       prompt,
       blueprint: (blueprint || project.blueprint) as
         | ProductBlueprint
         | undefined,
+      mode: editing ? "edit" : "create",
+      ...(editFiles ? { files: editFiles } : {}),
       res,
     });
   } catch (error) {

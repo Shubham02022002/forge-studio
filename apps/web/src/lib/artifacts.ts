@@ -85,6 +85,18 @@ export function parseArtifacts(text: string): ParsedArtifacts {
   return { files: [...files.values()], shell, artifactTitle, started: true };
 }
 
+export function mergeFiles(
+  base: GeneratedFile[],
+  incoming: GeneratedFile[],
+): GeneratedFile[] {
+  if (incoming.length === 0) return base;
+
+  const merged = new Map(base.map((file) => [file.path, file]));
+  for (const file of incoming) merged.set(file.path, file);
+
+  return [...merged.values()];
+}
+
 export interface TreeNode {
   name: string;
   path: string;

@@ -84,7 +84,7 @@ export function ChatPane({
   } = useVoiceRecorder(handleTranscript);
 
   const awaitingAnswers = active !== null;
-  const locked = busy || awaitingAnswers;
+  const locked = busy || awaitingAnswers || generating;
   const showEmptyState = messages.length === 0 && !busy && !error;
 
   useEffect(() => {
@@ -257,9 +257,11 @@ export function ChatPane({
             placeholder={
               awaitingAnswers
                 ? "Answer the questions above to continue"
-                : busy
+                : locked
                   ? "Working…"
-                  : "Describe the app you want to build, or hold Space to speak…"
+                  : generated
+                    ? "Describe a change — “make the header sticky”, “add a search filter”…"
+                    : "Describe the app you want to build, or hold Space to speak…"
             }
             spellCheck={false}
             className="block max-h-[200px] w-full resize-none bg-transparent px-3.5 pt-3 pb-1 text-[13px] leading-relaxed text-ink outline-none placeholder:text-faint disabled:cursor-not-allowed"
@@ -303,7 +305,9 @@ export function ChatPane({
         <p className="mt-2 px-0.5 text-[11px] text-faint">
           {voiceState === "recording"
             ? "Release Space to transcribe. Right-click to cancel."
-            : "Forge may ask follow-up questions before building."}
+            : generated
+              ? "Follow-ups edit the app in place — only the files that change are rewritten."
+              : "Forge may ask follow-up questions before building."}
         </p>
       </div>
     </section>

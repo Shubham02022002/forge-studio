@@ -245,11 +245,15 @@ export const PREINSTALLED_PACKAGES = [
 
 export const ARTIFACT_CLOSE = "</forgeArtifact>";
 
+export function buildArtifactOpen(title: string): string {
+  return `<forgeArtifact id="app-build" title="${escapeAttribute(title)}">\n`;
+}
+
 export function buildArtifactPreamble(
   title: string,
   files: ScaffoldFile[],
 ): string {
-  const lines = [`<forgeArtifact id="app-build" title="${escapeAttribute(title)}">`];
+  const lines = [buildArtifactOpen(title).trimEnd()];
 
   for (const file of files) {
     lines.push(`<forgeAction type="file" filePath="${escapeAttribute(file.path)}">`);

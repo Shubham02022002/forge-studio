@@ -3,14 +3,18 @@ import { groq } from "../config/groq.js";
 import {
   buildCodeGenSystemPrompt,
   buildCodeGenUserPrompt,
+  buildEditUserPrompt,
+  type CodeGenMode,
 } from "../prompts/codegen.prompt.js";
 import { ProductBlueprint } from "../types/ai.js";
 import { prisma } from "../config/db.js";
 import { ProjectStatus } from "@prisma/client";
 import {
   ARTIFACT_CLOSE,
+  buildArtifactOpen,
   buildArtifactPreamble,
   buildScaffold,
+  type ScaffoldFile,
 } from "../templates/scaffold.js";
 import { normalizeEscaping } from "../utils/normalize.js";
 
@@ -21,6 +25,8 @@ interface StreamCodeGenOptions {
   projectId: string;
   prompt: string;
   blueprint?: ProductBlueprint;
+  mode: CodeGenMode;
+  files?: ScaffoldFile[];
   res: Response;
 }
 
@@ -28,6 +34,8 @@ export async function streamCodeGeneration({
   projectId,
   prompt,
   blueprint,
+  mode,
+  files,
   res,
 }: StreamCodeGenOptions): Promise<void> {
 
@@ -54,22 +62,37 @@ export async function streamCodeGeneration({
       data: { status: ProjectStatus.GENERATING },
     });
 
-    sendEvent("status", { message: "Assembling the project scaffold..." });
-
+    const editing = mode === "edit";
     const title = blueprint?.title ?? "Generated app";
-    const scaffold = buildScaffold({
-      title,
-      primaryColor: blueprint?.designSystem.primaryColor,
+
+    sendEvent("status", {
+      message: editing
+        ? "Reading the current codebase..."
+        : "Assembling the project scaffold...",
     });
 
-    const preamble = buildArtifactPreamble(title, scaffold);
-    fullContent += preamble;
-    sendEvent("chunk", { text: preamble });
+    if (editing) {
+      const open = buildArtifactOpen(title);
+      fullContent += open;
+      sendEvent("chunk", { text: open });
+    } else {
+      const scaffold = buildScaffold({
+        title,
+        primaryColor: blueprint?.designSystem.primaryColor,
+      });
+      const preamble = buildArtifactPreamble(title, scaffold);
+      fullContent += preamble;
+      sendEvent("chunk", { text: preamble });
+    }
 
-    const systemPrompt = buildCodeGenSystemPrompt(blueprint);
-    const userPrompt = buildCodeGenUserPrompt(prompt, blueprint);
+    const systemPrompt = buildCodeGenSystemPrompt(blueprint, mode);
+    const userPrompt = editing
+      ? buildEditUserPrompt(prompt, files ?? [])
+      : buildCodeGenUserPrompt(prompt, blueprint);
 
-    sendEvent("status", { message: "Streaming code artifacts..." });
+    sendEvent("status", {
+      message: editing ? "Applying the change..." : "Streaming code artifacts...",
+    });
 
     const stream = await groq.chat.completions.create({
       model: CODE_MODEL,

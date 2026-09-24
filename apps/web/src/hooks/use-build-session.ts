@@ -117,6 +117,20 @@ export function useBuildSession() {
     [fail, push, runClarify],
   );
 
+  const recordUser = useCallback(
+    (text: string) => {
+      push({ id: `u${++idRef.current}`, role: "user", text });
+    },
+    [push],
+  );
+
+  const recordAssistant = useCallback(
+    (text: string) => {
+      push({ id: `a${++idRef.current}`, role: "assistant", text });
+    },
+    [push],
+  );
+
   const reset = useCallback(() => {
     setMessages([]);
     setActive(null);
@@ -169,5 +183,17 @@ export function useBuildSession() {
     [],
   );
 
-  return { messages, active, busy, error, prompt, send, answer, reset, hydrateMessages };
+  return {
+    messages,
+    active,
+    busy,
+    error,
+    prompt,
+    send,
+    answer,
+    reset,
+    hydrateMessages,
+    recordUser,
+    recordAssistant,
+  };
 }

@@ -28,10 +28,17 @@ export function Workspace() {
   const {
     reset: resetGeneration,
     start: startGeneration,
+    edit: editGeneration,
     hydrate: hydrateGeneration,
     files,
   } = generation;
-  const { send: sendMessage, prompt, hydrateMessages } = session;
+  const {
+    send: sendMessage,
+    prompt,
+    hydrateMessages,
+    recordUser,
+    recordAssistant,
+  } = session;
   const { reset: resetSandbox, run: runSandbox } = sandbox;
 
   useEffect(() => {
@@ -41,10 +48,14 @@ export function Workspace() {
     getProject(projectId)
       .then((project) => {
         if (cancelled) return;
-        const codeMessage = project.messages.find((m) => m.type === "code");
+        const codeContents = project.messages
+          .filter((m) => m.type === "code")
+          .map((m) => m.content);
+
         hydrateMessages(project.messages);
-        if (codeMessage?.content) {
-          hydrateGeneration(codeMessage.content);
+
+        if (codeContents.length > 0) {
+          hydrateGeneration(projectId, codeContents);
           setTab("code");
         }
       })
@@ -59,13 +70,42 @@ export function Workspace() {
 
   const send = useCallback(
     async (text: string) => {
+      if (files.length > 0) {
+        recordUser(text);
+        resetSandbox();
+        setSelectedPath(null);
+        setTab("code");
+
+        try {
+          const changed = await editGeneration(text, files);
+          recordAssistant(
+            changed.length > 0
+              ? `Updated ${changed.join(", ")}`
+              : "No files needed changing for that request.",
+          );
+        } catch (e) {
+          recordAssistant(
+            e instanceof Error ? e.message : "The change could not be applied.",
+          );
+        }
+        return;
+      }
+
       resetGeneration();
       resetSandbox();
       setSelectedPath(null);
       setTab("preview");
       await sendMessage(text);
     },
-    [resetGeneration, resetSandbox, sendMessage],
+    [
+      editGeneration,
+      files,
+      recordAssistant,
+      recordUser,
+      resetGeneration,
+      resetSandbox,
+      sendMessage,
+    ],
   );
 
   const generate = useCallback(
