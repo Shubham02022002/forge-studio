@@ -128,5 +128,46 @@ export function useBuildSession() {
     roundRef.current = 0;
   }, []);
 
-  return { messages, active, busy, error, prompt, send, answer, reset };
+  const hydrateMessages = useCallback(
+    (
+      serverMessages: Array<{
+        id: string;
+        role: string;
+        type: string;
+        content: string;
+      }>,
+    ) => {
+      const buildMessages: BuildMessage[] = [];
+      for (const m of serverMessages) {
+        if (m.type === "code") continue;
+        if (m.type === "blueprint" && m.role === "assistant") {
+          try {
+            buildMessages.push({
+              id: m.id,
+              role: m.role,
+              blueprint: JSON.parse(m.content),
+            });
+          } catch {
+            buildMessages.push({ id: m.id, role: m.role, text: m.content });
+          }
+        } else if (m.role === "user") {
+          buildMessages.push({
+            id: m.id,
+            role: "user",
+            text: m.content,
+          });
+        } else {
+          buildMessages.push({
+            id: m.id,
+            role: "assistant",
+            text: m.content,
+          });
+        }
+      }
+      setMessages(buildMessages);
+    },
+    [],
+  );
+
+  return { messages, active, busy, error, prompt, send, answer, reset, hydrateMessages };
 }

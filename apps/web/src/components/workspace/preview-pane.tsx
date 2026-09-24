@@ -11,26 +11,42 @@ import {
 import { Button } from "@/components/ui/button";
 import { CodeView } from "@/components/workspace/code-view";
 import { FileTree } from "@/components/workspace/file-tree";
+import { SandboxPane } from "@/components/workspace/sandbox-pane";
 import type { useGeneration } from "@/hooks/use-generation";
+import type { SandboxPhase, useSandbox } from "@/hooks/use-sandbox";
 import { buildTree } from "@/lib/artifacts";
 import { cn } from "@/lib/cn";
 
 export type PreviewTab = "preview" | "code";
 
+const PREVIEW_STATUS: Record<SandboxPhase, string> = {
+  idle: "sandbox idle",
+  booting: "booting sandbox",
+  mounting: "mounting files",
+  installing: "installing packages",
+  starting: "starting dev server",
+  ready: "app running",
+  error: "sandbox failed",
+};
+
 export function PreviewPane({
   tab,
   onTabChange,
   generation,
+  sandbox,
   selectedPath,
   onSelect,
+  onRun,
 }: {
   tab: PreviewTab;
   onTabChange: (tab: PreviewTab) => void;
   generation: ReturnType<typeof useGeneration>;
+  sandbox: ReturnType<typeof useSandbox>;
   selectedPath: string | null;
   onSelect: (path: string) => void;
+  onRun: () => void;
 }) {
-  const { phase, status, files, error, artifactTitle, receivedChars } = generation;
+  const { phase, status, files, error, receivedChars } = generation;
 
   const tree = useMemo(() => buildTree(files), [files]);
   const selected =
@@ -82,7 +98,14 @@ export function PreviewPane({
         )}
 
         <div className="ml-auto flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" title="Reload" aria-label="Reload">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title="Reload preview"
+            aria-label="Reload preview"
+            disabled={!hasFiles || sandbox.busy}
+            onClick={onRun}
+          >
             <RotateCw className="size-3.5" strokeWidth={1.9} />
           </Button>
           <Button
@@ -90,6 +113,12 @@ export function PreviewPane({
             size="icon-sm"
             title="Open in new tab"
             aria-label="Open in new tab"
+            disabled={!sandbox.previewUrl}
+            onClick={() => {
+              if (sandbox.previewUrl) {
+                window.open(sandbox.previewUrl, "_blank", "noopener");
+              }
+            }}
           >
             <ExternalLink className="size-3.5" strokeWidth={1.9} />
           </Button>
@@ -145,46 +174,30 @@ export function PreviewPane({
               </div>
             </div>
           )
+        ) : hasFiles ? (
+          <SandboxPane
+            files={files}
+            phase={sandbox.phase}
+            previewUrl={sandbox.previewUrl}
+            logs={sandbox.logs}
+            error={sandbox.error}
+            onRun={onRun}
+          />
         ) : (
           <div className="relative h-full">
             <div className="grid-veil absolute inset-0 opacity-60" />
             <div className="absolute inset-0 grid place-items-center px-6">
               <div className="w-full max-w-sm text-center">
-                {hasFiles ? (
-                  <>
-                    <div className="mx-auto grid size-11 place-items-center rounded-lg border border-forge-line bg-forge-soft">
-                      <MonitorPlay className="size-5 text-forge" strokeWidth={1.7} />
-                    </div>
-                    <h2 className="mt-4 text-sm font-medium text-ink">
-                      {artifactTitle ?? "Codebase ready"}
-                    </h2>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-faint">
-                      {files.length} files generated. The sandbox that runs this
-                      in the browser is the next piece to build.
-                    </p>
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      className="mt-5"
-                      onClick={() => onTabChange("code")}
-                    >
-                      Browse the code
-                    </Button>
-                  </>
-                ) : (
-                  <>
-                    <div className="mx-auto grid size-11 place-items-center rounded-lg border border-line-strong bg-panel">
-                      <MonitorPlay className="size-5 text-faint" strokeWidth={1.7} />
-                    </div>
-                    <h2 className="mt-4 text-sm font-medium text-muted">
-                      Nothing running yet
-                    </h2>
-                    <p className="mt-1.5 text-[13px] leading-relaxed text-faint">
-                      Describe your app in the chat and Forge will scaffold it
-                      into a sandboxed container with a live preview right here.
-                    </p>
-                  </>
-                )}
+                <div className="mx-auto grid size-11 place-items-center rounded-lg border border-line-strong bg-panel">
+                  <MonitorPlay className="size-5 text-faint" strokeWidth={1.7} />
+                </div>
+                <h2 className="mt-4 text-sm font-medium text-muted">
+                  Nothing running yet
+                </h2>
+                <p className="mt-1.5 text-[13px] leading-relaxed text-faint">
+                  Describe your app in the chat and Forge will scaffold it into
+                  a sandboxed container with a live preview right here.
+                </p>
               </div>
             </div>
           </div>
@@ -195,17 +208,17 @@ export function PreviewPane({
         <span
           className={cn(
             "inline-flex items-center gap-1.5",
-            error && "text-danger",
+            (error || sandbox.error) && "text-danger",
           )}
         >
           <span
             className={cn(
               "size-1.5 rounded-full",
-              error
+              error || sandbox.error
                 ? "bg-danger"
-                : active
+                : active || sandbox.busy
                   ? "bg-forge animate-[forge-pulse_1.4s_ease-in-out_infinite]"
-                  : phase === "done"
+                  : sandbox.phase === "ready" || phase === "done"
                     ? "bg-success"
                     : "bg-faint",
             )}
@@ -214,12 +227,16 @@ export function PreviewPane({
             ? "generation failed"
             : active
               ? "generating"
-              : phase === "done"
-                ? "generated"
-                : "sandbox idle"}
+              : hasFiles
+                ? PREVIEW_STATUS[sandbox.phase]
+                : phase === "done"
+                  ? "generated"
+                  : "sandbox idle"}
         </span>
         {hasFiles && <span>{files.length} files</span>}
-        <span className="ml-auto hidden sm:inline">crossOriginIsolated</span>
+        <span className="ml-auto hidden sm:inline">
+          {sandbox.isolated ? "crossOriginIsolated" : "isolation unavailable"}
+        </span>
       </footer>
 
       {error && (

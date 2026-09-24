@@ -45,6 +45,14 @@ export function useGeneration() {
     if (parsed.artifactTitle) setArtifactTitle(parsed.artifactTitle);
   }, []);
 
+  const hydrate = useCallback((content: string) => {
+    const parsed = parseArtifacts(content);
+    setFiles(parsed.files);
+    setShell(parsed.shell);
+    if (parsed.artifactTitle) setArtifactTitle(parsed.artifactTitle);
+    setPhase(parsed.files.length > 0 ? "done" : "idle");
+  }, []);
+
   const reset = useCallback(() => {
     abortRef.current?.abort();
     abortRef.current = null;
@@ -145,6 +153,7 @@ export function useGeneration() {
     artifactTitle,
     receivedChars,
     start,
+    hydrate,
     reset,
   };
 }

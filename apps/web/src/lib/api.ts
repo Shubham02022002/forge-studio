@@ -146,6 +146,28 @@ export function createProject(input: {
   });
 }
 
+export interface ProjectDetail {
+  id: string;
+  title: string;
+  description: string | null;
+  status: ProjectStatus;
+  blueprint: ProductBlueprint | null;
+  createdAt: string;
+  updatedAt: string;
+  messages: Array<{
+    id: string;
+    role: string;
+    type: string;
+    content: string;
+    metadata: Record<string, unknown> | null;
+    createdAt: string;
+  }>;
+}
+
+export function getProject(id: string) {
+  return request<ProjectDetail>(`/api/projects/${id}`);
+}
+
 export interface GenerationStreamHandlers {
   onStatus?: (message: string) => void;
   onChunk?: (text: string) => void;
