@@ -168,6 +168,63 @@ export function getProject(id: string) {
   return request<ProjectDetail>(`/api/projects/${id}`);
 }
 
+export interface ExportResult {
+  filename: string;
+  fileCount: number;
+  skipped: number;
+}
+
+function filenameFrom(header: string | null, fallback: string) {
+  const match = /filename="?([^";]+)"?/.exec(header ?? "");
+  return match?.[1] ?? fallback;
+}
+
+export async function exportProject(
+  id: string,
+  fallbackName = "forge-app.zip",
+): Promise<ExportResult> {
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/projects/${id}/export`);
+  } catch {
+    throw new ApiRequestError(
+      `Could not reach the Forge API at ${API_URL}. Is the server running?`,
+    );
+  }
+
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as ApiError | null;
+    throw new ApiRequestError(
+      body?.message ?? body?.error ?? `Export failed (${res.status})`,
+      res.status,
+    );
+  }
+
+  const blob = await res.blob();
+  const filename = filenameFrom(
+    res.headers.get("Content-Disposition"),
+    fallbackName,
+  );
+  const url = URL.createObjectURL(blob);
+
+  try {
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = filename;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+  } finally {
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  return {
+    filename,
+    fileCount: Number(res.headers.get("X-Forge-Files") ?? 0),
+    skipped: Number(res.headers.get("X-Forge-Skipped") ?? 0),
+  };
+}
+
 export interface GenerationStreamHandlers {
   onStatus?: (message: string) => void;
   onChunk?: (text: string) => void;

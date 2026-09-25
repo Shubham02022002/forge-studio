@@ -1,5 +1,39 @@
 import { Request, Response, NextFunction } from "express";
 import * as projectService from "../services/project.service.js";
+import { exportProject } from "../services/export.service.js";
+
+export async function exportProjectHandler(
+  req: Request<{ id: string }>,
+  res: Response,
+  next: NextFunction,
+): Promise<void> {
+  try {
+    const result = await exportProject(req.params.id);
+
+    if (!result.ok) {
+      const status =
+        result.reason === "not-found"
+          ? 404
+          : result.reason === "empty"
+            ? 409
+            : 413;
+      res.status(status).json({ error: result.message, message: result.message });
+      return;
+    }
+
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="${result.filename}"`,
+    );
+    res.setHeader("Content-Length", String(result.zip.length));
+    res.setHeader("X-Forge-Files", String(result.fileCount));
+    res.setHeader("X-Forge-Skipped", String(result.skipped));
+    res.status(200).send(result.zip);
+  } catch (error) {
+    next(error);
+  }
+}
 
 export async function createProjectHandler(
   req: Request,

@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
+  Check,
+  Download,
   ExternalLink,
   Loader2,
   MonitorPlay,
@@ -14,6 +16,7 @@ import { FileTree } from "@/components/workspace/file-tree";
 import { SandboxPane } from "@/components/workspace/sandbox-pane";
 import type { useGeneration } from "@/hooks/use-generation";
 import type { SandboxPhase, useSandbox } from "@/hooks/use-sandbox";
+import { exportProject } from "@/lib/api";
 import { buildTree } from "@/lib/artifacts";
 import { cn } from "@/lib/cn";
 
@@ -46,7 +49,27 @@ export function PreviewPane({
   onSelect: (path: string) => void;
   onRun: () => void;
 }) {
-  const { phase, status, files, error, receivedChars } = generation;
+  const { phase, status, files, error, receivedChars, projectId } = generation;
+
+  const [exporting, setExporting] = useState(false);
+  const [exported, setExported] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const onExport = useCallback(async () => {
+    if (!projectId) return;
+    setExporting(true);
+    setExportError(null);
+
+    try {
+      await exportProject(projectId);
+      setExported(true);
+      setTimeout(() => setExported(false), 2400);
+    } catch (e) {
+      setExportError(e instanceof Error ? e.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  }, [projectId]);
 
   const tree = useMemo(() => buildTree(files), [files]);
   const selected =
@@ -98,6 +121,23 @@ export function PreviewPane({
         )}
 
         <div className="ml-auto flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5 px-2 text-xs"
+            title="Download the project as a ZIP"
+            disabled={!hasFiles || !projectId || exporting}
+            onClick={() => void onExport()}
+          >
+            {exporting ? (
+              <Loader2 className="size-3.5 animate-spin" strokeWidth={2.1} />
+            ) : exported ? (
+              <Check className="size-3.5 text-success" strokeWidth={2.1} />
+            ) : (
+              <Download className="size-3.5" strokeWidth={1.9} />
+            )}
+            {exported ? "Saved" : "Export"}
+          </Button>
           <Button
             variant="ghost"
             size="icon-sm"
@@ -239,9 +279,11 @@ export function PreviewPane({
         </span>
       </footer>
 
-      {error && (
+      {(error || exportError) && (
         <div className="shrink-0 border-t border-danger/30 bg-danger/10 px-3 py-2">
-          <p className="text-[12px] leading-relaxed text-danger">{error}</p>
+          <p className="text-[12px] leading-relaxed text-danger">
+            {error ?? exportError}
+          </p>
         </div>
       )}
 

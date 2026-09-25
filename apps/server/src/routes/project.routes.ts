@@ -13,6 +13,7 @@ import {
   deleteProjectHandler,
   getProjectHandler,
   updateProjectHandler,
+  exportProjectHandler,
 } from "../controllers/project.controller.js";
 
 const router = Router();
@@ -21,6 +22,11 @@ router.post("/", validate(createProjectSchema), createProjectHandler);
 router.get("/", listProjectsHandler);
 
 router.get("/:id", validateParams(projectIdParamSchema), getProjectHandler);
+router.get(
+  "/:id/export",
+  validateParams(projectIdParamSchema),
+  exportProjectHandler,
+);
 router.patch(
   "/:id",
   validateParams(projectIdParamSchema),
