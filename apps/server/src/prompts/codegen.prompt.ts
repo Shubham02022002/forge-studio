@@ -75,8 +75,8 @@ import { Menu } from "lucide-react";
 
 export function Header({ onMenu }: { onMenu: () => void }) {
   return (
-    <header className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/80 backdrop-blur">
-      <button type="button" onClick={onMenu} className="p-2 transition-colors hover:bg-zinc-800/50">
+    <header className="sticky top-0 z-20 border-b border-zinc-800 bg-zinc-950/80">
+      <button type="button" onClick={onMenu} className="p-2 hover:bg-zinc-800/50">
         <Menu className="size-4" />
       </button>
     </header>
@@ -84,7 +84,32 @@ export function Header({ onMenu }: { onMenu: () => void }) {
 }
 </forgeAction>
 
-If exactly one file changes, emit exactly one block. Begin now with your first <forgeAction> block.`;
+One changed file means exactly one block. Begin now with your first <forgeAction> block.`;
+
+const EDIT_STACK = `STACK YOU ARE EDITING:
+- React 19 with TypeScript, bundled by Vite. Tailwind CSS v4.
+- The theme defines primary-400/500/600/700 and accent-400/500/600, used as bg-primary-500, text-accent-400 and so on.
+- Dark UI: bg-zinc-950 canvas, bg-zinc-900/60 cards, border-zinc-800 borders, text-zinc-50 headings, text-zinc-400 body copy.
+- src/main.tsx already wraps App in a HashRouter. Never use BrowserRouter.
+- lucide-react is the only icon library. recharts and date-fns handle charts and dates.`;
+
+const EDIT_QUALITY = `QUALITY BAR:
+1. NO STUBBED CODE. Never leave a "// TODO", a placeholder, or a partially implemented function in a file you touch.
+2. Use realistic data with believable names, amounts, dates and statuses. Never "Item 1" or "Lorem ipsum".
+3. Match the surrounding file's formatting, naming, imports and Tailwind conventions exactly. The change must read as if the original author wrote it.
+4. Keep every feature that already works working. This is a targeted change, not a refactor.`;
+
+function escapeAttribute(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/"/g, "&quot;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+export function fileBlock(path: string, content: string): string {
+  return `<currentFile path="${escapeAttribute(path)}">\n${content}\n</currentFile>`;
+}
 
 function designTokens(blueprint?: ProductBlueprint): string {
   if (!blueprint?.designSystem) {
@@ -100,19 +125,34 @@ function designTokens(blueprint?: ProductBlueprint): string {
   - Heading Font: ${designSystem.typography.headingFont}, Body: ${designSystem.typography.bodyFont}`;
 }
 
+export function buildEditSystemPrompt(): string {
+  return `You are Forge Studio's Principal Software Engineer.
+You are making a targeted change to a React application that ALREADY EXISTS and ALREADY RUNS. You are not rewriting it.
+
+${EDIT_RULES}
+
+AVAILABLE PACKAGES (already installed, import them directly):
+${PREINSTALLED_PACKAGES.join(", ")}
+
+${EDIT_STACK}
+
+${EDIT_QUALITY}
+
+${EDIT_EXAMPLE}`;
+}
+
 export function buildCodeGenSystemPrompt(
   blueprint?: ProductBlueprint,
   mode: CodeGenMode = "create",
 ): string {
-  const rules = mode === "edit" ? EDIT_RULES : CREATE_RULES;
-  const example = mode === "edit" ? EDIT_EXAMPLE : CREATE_EXAMPLE;
+  if (mode === "edit") return buildEditSystemPrompt();
 
   return `You are Forge Studio's Principal Software Engineer.
 You write production-grade, complete, beautiful React applications.
 
 The project is ALREADY scaffolded and its dependencies are ALREADY installed. You only write application source files.
 
-${rules}
+${CREATE_RULES}
 
 AVAILABLE PACKAGES (already installed, import them directly):
 ${PREINSTALLED_PACKAGES.join(", ")}
@@ -124,7 +164,7 @@ ${ANTI_SLOP}
 DESIGN BLUEPRINT:
 ${designTokens(blueprint)}
 
-${example}`;
+${CREATE_EXAMPLE}`;
 }
 
 export function buildCodeGenUserPrompt(
@@ -161,19 +201,39 @@ ${prompt}
 Write every file the app needs under src/. Remember: no scaffolding commands, no root-level files, no placeholder code.`;
 }
 
+export interface EditPromptOptions {
+  outline?: string | null;
+  totalFiles?: number;
+}
+
 export function buildEditUserPrompt(
   instruction: string,
   files: ScaffoldFile[],
+  { outline, totalFiles }: EditPromptOptions = {},
 ): string {
+  const total = totalFiles ?? files.length;
   const codebase = files
-    .map((file) => `<currentFile path="${file.path}">\n${file.content}\n</currentFile>`)
+    .map((file) => fileBlock(file.path, file.content))
     .join("\n\n");
 
-  return `CHANGE REQUEST
-${instruction}
+  const header = outline
+    ? `CURRENT PROJECT FILES — ${files.length} of ${total} files shown in full, complete and up to date`
+    : `CURRENT PROJECT FILES — ${files.length} files, complete and up to date`;
 
-CURRENT PROJECT FILES — ${files.length} files, complete and up to date
-${codebase}
+  const parts = [`CHANGE REQUEST\n${instruction}`];
+  parts.push(codebase ? `${header}\n${codebase}` : header);
 
-Apply the change request to this codebase. Emit only the files you modify, each one in full.`;
+  if (outline) {
+    parts.push(
+      `OTHER FILES IN THIS PROJECT — these already exist and already work. Read them only if the change genuinely requires it, and do not rewrite them otherwise:\n${outline}`,
+    );
+  }
+
+  parts.push(
+    outline
+      ? "Apply the change request. Emit only the files you modify, each one in full."
+      : "Apply the change request to this codebase. Emit only the files you modify, each one in full.",
+  );
+
+  return parts.join("\n\n");
 }
