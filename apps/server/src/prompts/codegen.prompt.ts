@@ -99,6 +99,11 @@ const EDIT_QUALITY = `QUALITY BAR:
 3. Match the surrounding file's formatting, naming, imports and Tailwind conventions exactly. The change must read as if the original author wrote it.
 4. Keep every feature that already works working. This is a targeted change, not a refactor.`;
 
+const TYPE_SAFETY = `TYPE SAFETY — the project is typechecked with tsc, so these must hold:
+1. React 19 removed the global JSX namespace. Never write JSX.Element anywhere — not in return types, nor in parameter, prop or variable annotations. Let types infer; if you must name an element type, use React.JSX.Element.
+2. Never annotate with a type you have not imported or declared in that file.
+3. Respect library literal unions. date-fns v4 day indexes are the union Day (0-6), so setDay and weekStartsOn reject a plain number — type your own day values as Day.`;
+
 function escapeAttribute(value: string): string {
   return value
     .replace(/&/g, "&amp;")
@@ -136,6 +141,8 @@ ${PREINSTALLED_PACKAGES.join(", ")}
 
 ${EDIT_STACK}
 
+${TYPE_SAFETY}
+
 ${EDIT_QUALITY}
 
 ${EDIT_EXAMPLE}`;
@@ -158,6 +165,8 @@ AVAILABLE PACKAGES (already installed, import them directly):
 ${PREINSTALLED_PACKAGES.join(", ")}
 
 ${STACK}
+
+${TYPE_SAFETY}
 
 ${ANTI_SLOP}
 
