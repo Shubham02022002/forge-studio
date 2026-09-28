@@ -79,8 +79,11 @@ function gitignoreFile(): ArtifactFile {
   return { path: ".gitignore", content: lines.join("\n"), complete: true };
 }
 
-export async function exportProject(projectId: string): Promise<ExportResult> {
-  const project = await getProjectById(projectId);
+export async function exportProject(
+  projectId: string,
+  userId: string,
+): Promise<ExportResult> {
+  const project = await getProjectById(projectId, userId);
   if (!project) {
     return { ok: false, reason: "not-found", message: "Project not found." };
   }

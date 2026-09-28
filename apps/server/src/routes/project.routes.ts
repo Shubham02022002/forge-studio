@@ -6,6 +6,7 @@ import {
   updateProjectSchema,
 } from "../types/project.schema.js";
 import { validate, validateParams } from "../middleware/validate.middleware.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
 import {
   createProjectHandler,
   listProjectsHandler,
@@ -17,6 +18,8 @@ import {
 } from "../controllers/project.controller.js";
 
 const router = Router();
+
+router.use(requireAuth);
 
 router.post("/", validate(createProjectSchema), createProjectHandler);
 router.get("/", listProjectsHandler);

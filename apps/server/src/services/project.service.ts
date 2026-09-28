@@ -6,9 +6,16 @@ import type {
   CreateMessageInput,
 } from "../types/project.schema.js";
 
+function isMissingRecord(error: unknown): boolean {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2025"
+  );
+}
+
 export async function createProject(
   input: CreateProjectInput,
-  userId?: string,
+  userId: string,
 ) {
   return prisma.project.create({
     data: {
@@ -30,9 +37,9 @@ export async function createProject(
   });
 }
 
-export async function listProjects(userId?: string) {
+export async function listProjects(userId: string) {
   return prisma.project.findMany({
-    where: userId ? { userId } : {},
+    where: { userId },
     orderBy: { updatedAt: "desc" },
     select: {
       id: true,
@@ -46,26 +53,35 @@ export async function listProjects(userId?: string) {
   });
 }
 
-export async function getProjectById(id: string) {
-  return prisma.project.findUnique({
-    where: { id },
+export async function getProjectById(id: string, userId: string) {
+  return prisma.project.findFirst({
+    where: { id, userId },
     include: { messages: { orderBy: { createdAt: "asc" } } },
   });
 }
 
-export async function updateProject(id: string, input: UpdateProjectInput) {
-  return prisma.project.update({
-    where: { id },
-    data: {
-      title: input.title,
-      description: input.description,
-      status: input.status,
-      isPublic: input.isPublic,
-      ...(input.blueprint !== undefined && {
-        blueprint: input.blueprint as Prisma.InputJsonValue,
-      }),
-    },
-  });
+export async function updateProject(
+  id: string,
+  input: UpdateProjectInput,
+  userId: string,
+) {
+  try {
+    return await prisma.project.update({
+      where: { id, userId },
+      data: {
+        title: input.title,
+        description: input.description,
+        status: input.status,
+        isPublic: input.isPublic,
+        ...(input.blueprint !== undefined && {
+          blueprint: input.blueprint as Prisma.InputJsonValue,
+        }),
+      },
+    });
+  } catch (error) {
+    if (isMissingRecord(error)) return null;
+    throw error;
+  }
 }
 
 export async function addMessage(projectId: string, input: CreateMessageInput) {
@@ -80,6 +96,15 @@ export async function addMessage(projectId: string, input: CreateMessageInput) {
   });
 }
 
-export async function deleteProject(id: string) {
-  return prisma.project.delete({ where: { id } });
+export async function deleteProject(
+  id: string,
+  userId: string,
+): Promise<boolean> {
+  try {
+    await prisma.project.delete({ where: { id, userId } });
+    return true;
+  } catch (error) {
+    if (isMissingRecord(error)) return false;
+    throw error;
+  }
 }

@@ -23,3 +23,11 @@ export async function requireAuth(
     next(error);
   }
 }
+
+export function requireUserId(req: Request): string {
+  if (!req.user) {
+    throw new Error("Route is missing requireAuth");
+  }
+
+  return req.user.id;
+}

@@ -6,6 +6,7 @@ import {
 
 import { streamCodeGeneration } from "../services/codegen.service.js";
 import * as projectService from "../services/project.service.js";
+import { requireUserId } from "../middleware/auth.middleware.js";
 import { ProductBlueprint } from "../types/ai.js";
 import type { ScaffoldFile } from "../templates/scaffold.js";
 
@@ -97,7 +98,10 @@ export async function generateCodeHandler(
       return;
     }
 
-    const project = await projectService.getProjectById(projectId);
+    const project = await projectService.getProjectById(
+      projectId,
+      requireUserId(req),
+    );
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;

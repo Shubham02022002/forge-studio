@@ -45,8 +45,8 @@ model Session {
 
 model Project {
     id          String        @id @default(uuid())
-    userId      String?
-    user        User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+    userId      String
+    user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
     title       String
     description String?
     status      ProjectStatus @default(DRAFT)

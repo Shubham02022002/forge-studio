@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as projectService from "../services/project.service.js";
 import { exportProject } from "../services/export.service.js";
+import { requireUserId } from "../middleware/auth.middleware.js";
 
 export async function exportProjectHandler(
   req: Request<{ id: string }>,
@@ -8,7 +9,7 @@ export async function exportProjectHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const result = await exportProject(req.params.id);
+    const result = await exportProject(req.params.id, requireUserId(req));
 
     if (!result.ok) {
       const status =
@@ -41,7 +42,10 @@ export async function createProjectHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const project = await projectService.createProject(req.body);
+    const project = await projectService.createProject(
+      req.body,
+      requireUserId(req),
+    );
     res.status(201).json({ success: true, data: project });
   } catch (error) {
     next(error);
@@ -54,7 +58,7 @@ export async function listProjectsHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const projects = await projectService.listProjects();
+    const projects = await projectService.listProjects(requireUserId(req));
     res.status(200).json({ success: true, data: projects });
   } catch (error) {
     next(error);
@@ -67,7 +71,10 @@ export async function getProjectHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const project = await projectService.getProjectById(req.params.id);
+    const project = await projectService.getProjectById(
+      req.params.id,
+      requireUserId(req),
+    );
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;
@@ -84,7 +91,17 @@ export async function updateProjectHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const project = await projectService.updateProject(req.params.id, req.body);
+    const project = await projectService.updateProject(
+      req.params.id,
+      req.body,
+      requireUserId(req),
+    );
+
+    if (!project) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
     res.status(200).json({ success: true, data: project });
   } catch (error) {
     next(error);
@@ -97,7 +114,8 @@ export async function addMessageHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    const project = await projectService.getProjectById(req.params.id);
+    const ownerId = requireUserId(req);
+    const project = await projectService.getProjectById(req.params.id, ownerId);
     if (!project) {
       res.status(404).json({ error: "Project not found" });
       return;
@@ -115,7 +133,16 @@ export async function deleteProjectHandler(
   next: NextFunction,
 ): Promise<void> {
   try {
-    await projectService.deleteProject(req.params.id);
+    const deleted = await projectService.deleteProject(
+      req.params.id,
+      requireUserId(req),
+    );
+
+    if (!deleted) {
+      res.status(404).json({ error: "Project not found" });
+      return;
+    }
+
     res.status(204).send();
   } catch (error) {
     next(error);
