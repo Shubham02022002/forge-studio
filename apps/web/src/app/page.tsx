@@ -54,7 +54,7 @@ export default function Home() {
         </nav>
         <div className="flex items-center gap-3">
           <ThemeToggle />
-          <Link href="/workspace" className={buttonClass("secondary", "sm")}>
+          <Link href="/signin" className={buttonClass("secondary", "sm")}>
             Sign in
           </Link>
         </div>

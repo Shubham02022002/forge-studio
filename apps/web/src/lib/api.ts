@@ -18,15 +18,22 @@ interface ApiSuccess<T> {
   data: T;
 }
 
+export interface ApiFieldError {
+  field: string;
+  message: string;
+}
+
 interface ApiError {
   error: string;
   message?: string;
+  details?: ApiFieldError[];
 }
 
 export class ApiRequestError extends Error {
   constructor(
     message: string,
     readonly status?: number,
+    readonly details?: ApiFieldError[],
   ) {
     super(message);
     this.name = "ApiRequestError";
@@ -39,6 +46,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     res = await fetch(`${API_URL}${path}`, {
       ...init,
+      credentials: "include",
       headers: {
         ...(isFormData ? {} : { "Content-Type": "application/json" }),
         ...init?.headers,
@@ -53,13 +61,50 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiError | null;
     throw new ApiRequestError(
-      body?.message ?? body?.error ?? `Request failed (${res.status})`,
+      body?.details?.[0]?.message ??
+        body?.message ??
+        body?.error ??
+        `Request failed (${res.status})`,
       res.status,
+      body?.details,
     );
   }
 
+  if (res.status === 204) return undefined as T;
+
   const body = (await res.json()) as ApiSuccess<T>;
   return body.data;
+}
+
+export interface SessionUser {
+  id: string;
+  email: string | null;
+  name: string | null;
+  avatarUrl: string | null;
+  githubUsername: string | null;
+  createdAt: string;
+}
+
+export function signUp(input: {
+  email: string;
+  password: string;
+  name?: string;
+}) {
+  return request<SessionUser>("/api/auth/signup", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function signIn(input: { email: string; password: string }) {
+  return request<SessionUser>("/api/auth/signin", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function signOut() {
+  return request<void>("/api/auth/signout", { method: "POST" });
 }
 
 export function getProjects() {
@@ -185,7 +230,9 @@ export async function exportProject(
 ): Promise<ExportResult> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}/api/projects/${id}/export`);
+    res = await fetch(`${API_URL}/api/projects/${id}/export`, {
+      credentials: "include",
+    });
   } catch {
     throw new ApiRequestError(
       `Could not reach the Forge API at ${API_URL}. Is the server running?`,
@@ -275,6 +322,7 @@ export async function streamGeneration(
 ): Promise<void> {
   const res = await fetch(`${API_URL}/api/ai/generate`, {
     method: "POST",
+    credentials: "include",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
     signal,

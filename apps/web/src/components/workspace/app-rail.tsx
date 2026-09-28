@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookOpen, FolderClosed, Plus, Settings, Sparkles } from "lucide-react";
+import { AccountMenu } from "@/components/auth/account-menu";
 import { ForgeMark } from "@/components/ui/forge-mark";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { cn } from "@/lib/cn";
@@ -65,14 +66,7 @@ export function AppRail() {
         >
           <Settings className="size-4" strokeWidth={1.9} />
         </button>
-        <button
-          type="button"
-          title="Account"
-          aria-label="Account"
-          className="grid size-8 place-items-center rounded-full border border-line-strong bg-elevated text-[11px] font-semibold text-muted transition-colors hover:border-forge-line hover:text-ink"
-        >
-          C
-        </button>
+        <AccountMenu />
       </div>
     </nav>
   );
