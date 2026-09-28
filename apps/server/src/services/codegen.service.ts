@@ -29,6 +29,17 @@ const CODE_MODEL = "openai/gpt-oss-120b";
 const CODE_MAX_TOKENS = 16000;
 const RETRY_BUDGET_FACTOR = 0.7;
 
+async function markFailed(projectId: string): Promise<void> {
+  try {
+    await prisma.project.update({
+      where: { id: projectId },
+      data: { status: ProjectStatus.FAILED },
+    });
+  } catch (error) {
+    console.error(`Could not mark project ${projectId} as failed:`, error);
+  }
+}
+
 interface StreamCodeGenOptions {
   projectId: string;
   prompt: string;
@@ -56,9 +67,21 @@ export async function streamCodeGeneration({
 
   res.flushHeaders?.();
 
+  let aborted = false;
+  const controller = new AbortController();
+
   const sendEvent = (event: string, data: unknown) => {
+    if (aborted) return;
     res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
   };
+
+  const onClientClose = () => {
+    if (res.writableEnded) return;
+    aborted = true;
+    controller.abort();
+  };
+
+  res.on("close", onClientClose);
 
   let fullContent = "";
 
@@ -104,6 +127,8 @@ export async function streamCodeGeneration({
     const requestTokens = estimateTokens(systemPrompt) + estimateTokens(userPrompt);
 
     if (requestTokens > MODEL_TPM_LIMIT) {
+      await markFailed(projectId);
+
       sendEvent("error", {
         message: `This request needs about ${requestTokens.toLocaleString()} tokens, and the current model plan allows ${MODEL_TPM_LIMIT.toLocaleString()} per minute. Try describing a smaller change.`,
       });
@@ -117,16 +142,19 @@ export async function streamCodeGeneration({
     }
 
     const openStream = (sys: string, usr: string) =>
-      groq.chat.completions.create({
-        model: CODE_MODEL,
-        messages: [
-          { role: "system", content: sys },
-          { role: "user", content: usr },
-        ],
-        temperature: 0.2,
-        max_tokens: CODE_MAX_TOKENS,
-        stream: true,
-      });
+      groq.chat.completions.create(
+        {
+          model: CODE_MODEL,
+          messages: [
+            { role: "system", content: sys },
+            { role: "user", content: usr },
+          ],
+          temperature: 0.2,
+          max_tokens: CODE_MAX_TOKENS,
+          stream: true,
+        },
+        { signal: controller.signal },
+      );
 
     let stream: Awaited<ReturnType<typeof openStream>> | null = null;
 
@@ -165,11 +193,18 @@ export async function streamCodeGeneration({
     });
 
     for await (const chunk of stream) {
+      if (aborted) break;
+
       const text = chunk.choices[0]?.delta?.content || "";
       if (text) {
         fullContent += text;
         sendEvent("chunk", { text });
       }
+    }
+
+    if (aborted) {
+      await markFailed(projectId);
+      return;
     }
 
     fullContent += ARTIFACT_CLOSE;
@@ -194,6 +229,9 @@ export async function streamCodeGeneration({
     sendEvent("done", { message: "Code generation completed successfully." });
   } catch (error) {
     console.error("Error during code generation streaming:", error);
+
+    await markFailed(projectId);
+
     sendEvent("error", {
       message: isTokenLimitError(error)
         ? "The model's per-minute token limit was reached. Wait a moment and try the change again."
@@ -202,6 +240,8 @@ export async function streamCodeGeneration({
           : "Generation failed",
     });
   } finally {
-    res.end();
+    res.removeListener("close", onClientClose);
+
+    if (!res.writableEnded) res.end();
   }
 }

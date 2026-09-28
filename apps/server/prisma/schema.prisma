@@ -13,6 +13,7 @@ enum ProjectStatus {
     READY
     GENERATING
     COMPLETED
+    FAILED
 }
 
 model User {
