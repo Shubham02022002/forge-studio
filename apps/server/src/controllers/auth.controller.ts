@@ -10,9 +10,9 @@ import {
   GITHUB_AUTHORIZE_URL,
   GITHUB_CALLBACK_URL,
   GITHUB_SCOPE,
-  WEB_APP_URL,
   githubCredentials,
 } from "../config/github.js";
+import { WEB_APP_URL } from "../config/runtime.js";
 import * as authService from "../services/auth.service.js";
 import { completeGithubSignIn } from "../services/github.service.js";
 import { createSession, deleteSession } from "../services/session.service.js";

@@ -11,8 +11,6 @@ export const GITHUB_CALLBACK_URL =
   process.env.GITHUB_CALLBACK_URL ??
   "http://localhost:5000/api/auth/github/callback";
 
-export const WEB_APP_URL = process.env.WEB_APP_URL ?? "http://localhost:3000";
-
 export interface GithubCredentials {
   clientId: string;
   clientSecret: string;
