@@ -4,15 +4,34 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, Loader2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { Button, buttonClass } from "@/components/ui/button";
+import { GithubMark } from "@/components/ui/github-mark";
 import { signIn, signUp } from "@/lib/api";
+import { githubNotice, githubSignInHref } from "@/lib/github";
 
 const field =
   "h-9 w-full rounded-md border border-line-strong bg-elevated px-3 text-[13px] text-ink placeholder:text-faint";
 
-export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
+interface AuthFormProps {
+  mode: "signin" | "signup";
+  next?: string | null;
+  errorCode?: string | null;
+}
+
+export function AuthForm({
+  mode,
+  next = null,
+  errorCode = null,
+}: AuthFormProps) {
   const router = useRouter();
   const isSignup = mode === "signup";
+  const dest = next ?? "/workspace";
+  const notice = githubNotice(errorCode);
+
+  const switchHref = isSignup ? "/signin" : "/signup";
+  const switchTo = next
+    ? `${switchHref}?next=${encodeURIComponent(next)}`
+    : switchHref;
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -32,7 +51,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
         await signIn({ email, password });
       }
 
-      router.replace("/workspace");
+      router.replace(dest);
       router.refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
@@ -51,7 +70,23 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           : "Sign in to pick up where you left off."}
       </p>
 
-      <form onSubmit={onSubmit} className="mt-7 flex flex-col gap-3">
+      <div className="mt-7 flex flex-col gap-3">
+        <a
+          href={githubSignInHref(next)}
+          className={buttonClass("secondary", "md", "h-9 w-full")}
+        >
+          <GithubMark />
+          Continue with GitHub
+        </a>
+
+        <div className="flex items-center gap-3 py-0.5">
+          <span className="h-px flex-1 bg-line" />
+          <span className="text-[11px] text-faint">or</span>
+          <span className="h-px flex-1 bg-line" />
+        </div>
+      </div>
+
+      <form onSubmit={onSubmit} className="mt-3 flex flex-col gap-3">
         {isSignup && (
           <label className="flex flex-col gap-1.5">
             <span className="text-[12px] text-muted">Name</span>
@@ -92,13 +127,15 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           />
         </label>
 
-        {error && (
+        {(error ?? notice) && (
           <div className="flex items-start gap-2 rounded-md border border-danger/30 bg-danger/10 px-3 py-2">
             <AlertTriangle
               className="mt-px size-3.5 shrink-0 text-danger"
               strokeWidth={2}
             />
-            <p className="text-[12px] leading-relaxed text-danger">{error}</p>
+            <p className="text-[12px] leading-relaxed text-danger">
+              {error ?? notice}
+            </p>
           </div>
         )}
 
@@ -118,7 +155,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <p className="mt-5 text-[13px] text-faint">
         {isSignup ? "Already have an account? " : "New to Forge? "}
         <Link
-          href={isSignup ? "/signin" : "/signup"}
+          href={switchTo}
           className="text-forge transition-opacity hover:opacity-80"
         >
           {isSignup ? "Sign in" : "Create one"}

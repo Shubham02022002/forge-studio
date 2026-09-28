@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { LogIn, LogOut } from "lucide-react";
@@ -81,13 +82,23 @@ function SignedInMenu({ user }: { user: SessionUser }) {
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
         className={cn(
-          "grid size-8 place-items-center rounded-full border text-[11px] font-semibold transition-colors",
+          "grid size-8 place-items-center overflow-hidden rounded-full border text-[11px] font-semibold transition-colors",
           open
             ? "border-forge-line bg-forge-soft text-forge"
             : "border-line-strong bg-elevated text-muted hover:border-forge-line hover:text-ink",
         )}
       >
-        {initialOf(user.name, user.email)}
+        {user.avatarUrl ? (
+          <Image
+            src={user.avatarUrl}
+            alt=""
+            width={32}
+            height={32}
+            className="size-8 object-cover"
+          />
+        ) : (
+          initialOf(user.name, user.email)
+        )}
       </button>
 
       {open && (
@@ -95,13 +106,29 @@ function SignedInMenu({ user }: { user: SessionUser }) {
           role="menu"
           className="absolute bottom-0 left-full z-50 ml-2 w-[232px] overflow-hidden rounded-lg border border-line-strong bg-panel shadow-pop"
         >
-          <div className="border-b border-line px-3 py-2.5">
-            <p className="truncate text-[13px] font-medium text-ink">
-              {user.name ?? "Your account"}
-            </p>
-            <p className="mt-0.5 truncate text-[12px] text-faint">
-              {user.email}
-            </p>
+          <div className="flex items-center gap-2.5 border-b border-line px-3 py-2.5">
+            {user.avatarUrl ? (
+              <Image
+                src={user.avatarUrl}
+                alt=""
+                width={28}
+                height={28}
+                className="size-7 shrink-0 rounded-full object-cover"
+              />
+            ) : (
+              <span className="grid size-7 shrink-0 place-items-center rounded-full border border-line-strong bg-elevated text-[11px] font-semibold text-muted">
+                {initialOf(user.name, user.email)}
+              </span>
+            )}
+
+            <div className="min-w-0">
+              <p className="truncate text-[13px] font-medium text-ink">
+                {user.name ?? "Your account"}
+              </p>
+              <p className="mt-0.5 truncate text-[12px] text-faint">
+                {user.email}
+              </p>
+            </div>
           </div>
 
           <button
