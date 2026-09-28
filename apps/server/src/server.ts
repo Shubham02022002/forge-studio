@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import { prisma } from "./config/db.js";
 import aiRoutes from "./routes/ai.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 import projectRoutes from "./routes/project.routes.js";
 import voiceRoutes from "./routes/voice.routes.js";
 
@@ -39,6 +40,7 @@ app.get("/api/health", async (_req: Request, res: Response) => {
 });
 
 app.use("/api/ai", aiRoutes);
+app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/voice", voiceRoutes);
 
