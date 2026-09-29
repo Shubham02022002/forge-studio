@@ -1,5 +1,8 @@
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+export const SERVER_API_URL = process.env.API_URL ?? "http://localhost:5000";
+
+export const API_URL = typeof window === "undefined" ? SERVER_API_URL : "";
+
+const API_LABEL = API_URL === "" ? "this origin" : API_URL;
 
 export type ProjectStatus = "DRAFT" | "GENERATING" | "READY" | "FAILED";
 
@@ -54,7 +57,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch {
     throw new ApiRequestError(
-      `Could not reach the Forge API at ${API_URL}. Is the server running?`,
+      `Could not reach the Forge API at ${API_LABEL}. Is the server running?`,
     );
   }
 
@@ -235,7 +238,7 @@ export async function exportProject(
     });
   } catch {
     throw new ApiRequestError(
-      `Could not reach the Forge API at ${API_URL}. Is the server running?`,
+      `Could not reach the Forge API at ${API_LABEL}. Is the server running?`,
     );
   }
 

@@ -1,10 +1,10 @@
-import { API_URL } from "@/lib/api";
-
 export function githubSignInHref(next: string | null): string {
-  const url = new URL(`${API_URL}/api/auth/github`);
-  if (next) url.searchParams.set("next", next);
+  const params = new URLSearchParams();
+  if (next) params.set("next", next);
 
-  return url.toString();
+  const query = params.toString();
+
+  return `/api/auth/github${query ? `?${query}` : ""}`;
 }
 
 const NOTICES: Record<string, string> = {
