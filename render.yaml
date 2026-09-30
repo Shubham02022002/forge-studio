@@ -17,6 +17,10 @@ services:
         value: production
       - key: TRUST_PROXY
         value: "2"
+      - key: WEB_APP_URL
+        value: https://forge-studio-kappa.vercel.app
+      - key: GITHUB_CALLBACK_URL
+        value: https://forge-studio-kappa.vercel.app/api/auth/github/callback
       - key: DATABASE_URL
         sync: false
       - key: GROQ_API_KEY
@@ -24,27 +28,4 @@ services:
       - key: GITHUB_CLIENT_ID
         sync: false
       - key: GITHUB_CLIENT_SECRET
-        sync: false
-      - key: GITHUB_CALLBACK_URL
-        sync: false
-      - key: WEB_APP_URL
-        sync: false
-
-  - type: web
-    name: forge-studio-web
-    runtime: node
-    plan: free
-    region: ohio
-    branch: main
-    rootDir: apps/web
-    buildCommand: npm install --include=dev && npm run build
-    startCommand: npm start
-    healthCheckPath: /
-    autoDeploy: true
-    envVars:
-      - key: NODE_VERSION
-        value: "24"
-      - key: NODE_ENV
-        value: production
-      - key: API_URL
         sync: false

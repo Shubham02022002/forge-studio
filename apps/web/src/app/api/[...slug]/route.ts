@@ -33,7 +33,7 @@ async function forward(
     if (!STRIPPED_HEADERS.has(key.toLowerCase())) headers.set(key, value);
   }
 
-  const clientIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+  const clientIp = req.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim();
   if (clientIp) headers.set("x-forwarded-for", clientIp);
 
   const hasBody = req.method !== "GET" && req.method !== "HEAD";

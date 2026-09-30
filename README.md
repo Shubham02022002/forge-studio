@@ -34,7 +34,7 @@ flowchart TB
     UI -.->|"mounts files, spawns npm"| WC
   end
 
-  subgraph Web["forge-studio-web — Render"]
+  subgraph Web["forge-studio-web — Vercel"]
     SSR["Server Components<br/>layouts · pages · getSessionUser()"]
     Proxy["/api/[...slug]<br/>same-origin proxy"]
   end
@@ -76,7 +76,7 @@ The model IDs carrying an `openai/` prefix are Groq's names for open-weight mode
 
 The obvious deployment — put the Next.js app on one host and the Express API on another, and let the browser call the API directly — breaks authentication completely. The reason is a detail of how browsers scope cookies.
 
-`onrender.com` is on the **Public Suffix List**. That list is what tells a browser which part of a hostname is a registrable domain, and its entries are treated like `com`, `co.uk`, or `github.io`: a shared suffix under which different owners live. For the browser, `forge-studio-web.onrender.com` and `forge-studio-api.onrender.com` are therefore **two different sites**, not two subdomains of one. A `SameSite=Lax` session cookie set by the API is not attached to requests made from the web app's origin. The cookie is written, and then never sent back.
+Both `vercel.app` and `onrender.com` are on the **Public Suffix List**. That list is what tells a browser which part of a hostname is a registrable domain, and its entries are treated like `com`, `co.uk`, or `github.io`: a shared suffix under which different owners live. `forge-studio-kappa.vercel.app` and `forge-studio-api.onrender.com` are therefore not merely different hosts but **different sites** entirely. A `SameSite=Lax` session cookie set by the API is never attached to requests made from the web app's origin. The cookie is written, and then never sent back.
 
 That is not only a client-side problem. The Next.js layouts gate every page on a server-side session check, so the cookie also has to be readable while rendering on the server. A cross-site cookie breaks the redirect guards as well as the API calls.
 
@@ -105,7 +105,7 @@ sequenceDiagram
 `apps/web/src/app/api/[...slug]/route.ts` implements this with one `forward` function exported as `GET`, `POST`, `PUT`, `PATCH`, `DELETE`, `HEAD`, and `OPTIONS`. It is a transparent proxy, not a rewrite:
 
 - **Request headers** pass through untouched except a hop-by-hop denylist (`connection`, `keep-alive`, `transfer-encoding`, `content-length`, `host`, and friends). The browser's `cookie` header reaches the API verbatim.
-- **`x-forwarded-for`** is rewritten to the first hop only, so the API's rate limiter sees the real client IP rather than the web service's.
+- **`x-forwarded-for`** is rewritten to a single real client address, taken from the entry the platform's edge appended rather than the first entry in the header — the first entry is client-supplied and forgeable, and this value is what the API's rate limiter keys on.
 - **`redirect: "manual"`** is essential. Following redirects inside the proxy would swallow the OAuth 302 and its `location`; the handler forwards the 3xx to the browser intact.
 - **The response body is streamed**, not buffered, which is what lets Server-Sent Events flow through without the proxy holding frames until completion.
 
@@ -475,23 +475,23 @@ Database schema is applied with `npx prisma migrate deploy` (or `migrate dev` wh
 
 ## Deployment
 
-`render.yaml` defines both services as a blueprint: Node runtime, free plan, `ohio`, auto-deploy from `main`, each rooted at its app directory.
+The web app is deployed on Vercel with its root directory set to `apps/web`. `render.yaml` deploys the API on Render as a blueprint: Node runtime, free plan, `ohio`, auto-deploy from `main`, rooted at `apps/server`. The blueprint defines only the API service — a web service on Render would be a second copy of an app Vercel already serves.
 
-The API's build runs `prisma generate` and `prisma migrate deploy` before compiling, so schema changes ship with the code that needs them. Both builds pass `--include=dev`, because `NODE_ENV=production` otherwise omits the dev dependencies the build itself requires — the TypeScript compiler, the Prisma CLI, and the Tailwind PostCSS plugin are all build-time tools.
+The API's build runs `prisma generate` and `prisma migrate deploy` before compiling, so schema changes ship with the code that needs them. It also passes `--include=dev`, because `NODE_ENV=production` otherwise omits the dev dependencies the build itself requires — the TypeScript compiler and the Prisma CLI are both build-time tools.
 
 ### Why `TRUST_PROXY=2`
 
 Express derives `req.ip` from `X-Forwarded-For` using a hop-count rule: the address list is the socket peer followed by the header entries in reverse, and trusting *n* means taking the nth entry. The deployed request path adds two proxy hops beyond the browser:
 
 ```
-browser → Render LB (web) → Next.js → Render LB (api) → Express
+browser → Vercel edge → Next.js → Render LB → Express
 ```
 
-so the API sees `X-Forwarded-For: <real client>, <web service>` with a Render load balancer as the socket peer. Trusting 2 hops lands `req.ip` on the real client. This matters because the credential rate limiter keys on `req.ip` — too low and one client's attempts can throttle another's, too high and the header becomes spoofable. It is verifiable after deploy by comparing the `pk=` partition key in the `RateLimit-Policy` response header from two different networks: it should differ.
+so the API sees `X-Forwarded-For: <real client>, <web host>` with a Render load balancer as the socket peer. Trusting 2 hops lands `req.ip` on the real client. This matters because the credential rate limiter keys on `req.ip` — too low and one client's attempts can throttle another's, too high and the header becomes spoofable. It is verifiable after deploy by comparing the `pk=` partition key in the `RateLimit-Policy` response header from two different networks: it should differ.
 
 ### Environment contract between the services
 
-`API_URL` on the web service points at the API service, and `WEB_APP_URL` on the API points back at the web service. `GITHUB_CALLBACK_URL` must be the **web** service's callback path (`https://<web-host>/api/auth/github/callback`), since the browser is redirected there — and must match the value configured in the GitHub OAuth app. Secrets (`DATABASE_URL`, `GROQ_API_KEY`, the GitHub pair) are marked `sync: false` and are entered in the dashboard, never in the repository.
+The web app reads `API_URL`, pointing at the API service; the API reads `WEB_APP_URL`, pointing back at the web app. `GITHUB_CALLBACK_URL` must be the **web** host's callback path (`https://forge-studio-kappa.vercel.app/api/auth/github/callback`) — that is the host the browser is redirected to, and therefore the value that has to match the GitHub OAuth app. Because the OAuth state cookie is scoped to that origin, pointing the callback at the API host instead makes every sign-in fail with `github_state`. `CORS_ORIGINS` is left unset so the origin allowlist falls back to `WEB_APP_URL`; if `WEB_APP_URL` were wrong, every state-changing request would be rejected by the same-origin guard with a 403. Secrets (`DATABASE_URL`, `GROQ_API_KEY`, the GitHub pair) are marked `sync: false` and are entered in the dashboard, never in the repository.
 
 ---
 
