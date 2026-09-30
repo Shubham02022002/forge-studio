@@ -73,9 +73,11 @@ export function MessageList({
       {error && (
         <div className="animate-rise rounded-md border border-danger/30 bg-danger/10 px-3 py-2.5">
           <p className="text-[12px] leading-relaxed text-danger">{error}</p>
-          <p className="mt-1 text-[11px] text-faint">
-            Check that the Forge API is running on port 5000.
-          </p>
+          {process.env.NODE_ENV !== "production" && (
+            <p className="mt-1 text-[11px] text-faint">
+              Check that the Forge API is running on port 5000.
+            </p>
+          )}
         </div>
       )}
 
