@@ -8,6 +8,7 @@ import {
   TRUST_PROXY,
 } from "./config/runtime.js";
 import { requireSameOrigin } from "./middleware/same-origin.middleware.js";
+import { resetStrandedGenerations } from "./services/codegen.service.js";
 import aiRoutes from "./routes/ai.routes.js";
 import authRoutes from "./routes/auth.routes.js";
 import projectRoutes from "./routes/project.routes.js";
@@ -69,6 +70,14 @@ const server = app.listen(PORT, () => {
     `[Forge Studio] Server listening on port ${PORT} in ${IS_PRODUCTION ? "production" : "development"} mode`,
   );
   console.log(`[Forge Studio] Allowed origins: ${ALLOWED_ORIGINS.join(", ")}`);
+});
+
+void resetStrandedGenerations().then((count) => {
+  if (count > 0) {
+    console.log(
+      `[Forge Studio] Marked ${count} project(s) failed after an interrupted generation.`,
+    );
+  }
 });
 
 const SHUTDOWN_GRACE_MS = 250;

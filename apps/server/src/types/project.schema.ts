@@ -12,9 +12,6 @@ export const createProjectSchema = z.object({
 export const updateProjectSchema = z.object({
   title: z.string().min(1).max(120).optional(),
   description: z.string().max(500).optional(),
-  status: z
-    .enum(["DRAFT", "CLARIFYING", "READY", "GENERATING", "COMPLETED"])
-    .optional(),
   blueprint: z.record(z.string(), z.unknown()).optional(),
   isPublic: z.boolean().optional(),
 });

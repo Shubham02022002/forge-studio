@@ -7,6 +7,7 @@ import {
 } from "../types/project.schema.js";
 import { validate, validateParams } from "../middleware/validate.middleware.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import { exportLimiter } from "../middleware/rate-limit.middleware.js";
 import {
   createProjectHandler,
   listProjectsHandler,
@@ -27,6 +28,7 @@ router.get("/", listProjectsHandler);
 router.get("/:id", validateParams(projectIdParamSchema), getProjectHandler);
 router.get(
   "/:id/export",
+  exportLimiter,
   validateParams(projectIdParamSchema),
   exportProjectHandler,
 );

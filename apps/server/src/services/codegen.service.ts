@@ -40,6 +40,20 @@ async function markFailed(projectId: string): Promise<void> {
   }
 }
 
+export async function resetStrandedGenerations(): Promise<number> {
+  try {
+    const { count } = await prisma.project.updateMany({
+      where: { status: ProjectStatus.GENERATING },
+      data: { status: ProjectStatus.FAILED },
+    });
+
+    return count;
+  } catch (error) {
+    console.error("Could not reset stranded generations:", error);
+    return 0;
+  }
+}
+
 interface StreamCodeGenOptions {
   projectId: string;
   prompt: string;

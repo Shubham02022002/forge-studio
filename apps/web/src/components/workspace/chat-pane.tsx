@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowUp, Paperclip, Sparkles } from "lucide-react";
+import { ArrowUp, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ClarificationCard } from "@/components/workspace/clarification-card";
 import { MessageList } from "@/components/workspace/message-list";
@@ -133,7 +133,10 @@ export function ChatPane({
     <section className="flex w-[404px] shrink-0 flex-col border-r border-line bg-canvas">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-3">
         <h1 className="truncate text-[13px] font-medium text-ink">{title}</h1>
-        <span className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-faint">
+        <span
+          role="status"
+          className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line-strong px-2 py-0.5 text-[11px] text-faint"
+        >
           <span
             className={cn(
               "size-1.5 rounded-full",
@@ -268,16 +271,6 @@ export function ChatPane({
           />
 
           <div className="flex items-center gap-1 px-2 pb-2">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              disabled={locked}
-              title="Attach files"
-              aria-label="Attach files"
-            >
-              <Paperclip className="size-3.5" strokeWidth={1.9} />
-            </Button>
-
             <VoiceButton
               state={voiceState}
               duration={voiceDuration}

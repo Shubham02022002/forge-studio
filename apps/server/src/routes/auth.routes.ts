@@ -1,8 +1,8 @@
 import { Router } from "express";
-import { rateLimit } from "express-rate-limit";
 import { signinSchema, signupSchema } from "../types/auth.schema.js";
 import { validate } from "../middleware/validate.middleware.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import { credentialLimiter } from "../middleware/rate-limit.middleware.js";
 import {
   githubCallbackHandler,
   githubStartHandler,
@@ -11,14 +11,6 @@ import {
   signoutHandler,
   signupHandler,
 } from "../controllers/auth.controller.js";
-
-const credentialLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 30,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  message: { error: "Too many attempts. Please try again later." },
-});
 
 const router = Router();
 

@@ -38,8 +38,17 @@ export function Workspace() {
     hydrateMessages,
     recordUser,
     recordAssistant,
+    reset: resetSession,
   } = session;
   const { reset: resetSandbox, run: runSandbox } = sandbox;
+
+  const newProject = useCallback(() => {
+    resetGeneration();
+    resetSandbox();
+    resetSession();
+    setSelectedPath(null);
+    setTab("preview");
+  }, [resetGeneration, resetSandbox, resetSession]);
 
   useEffect(() => {
     if (!projectId) return;
@@ -127,7 +136,7 @@ export function Workspace() {
 
   return (
     <main className="flex h-dvh w-full overflow-hidden">
-      <AppRail />
+      <AppRail onNewProject={newProject} />
       <ChatPane
         session={{ ...session, send }}
         generating={generating}

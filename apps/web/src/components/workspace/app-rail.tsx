@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BookOpen, FolderClosed, Plus, Settings, Sparkles } from "lucide-react";
+import { BookOpen, FolderClosed, Plus, Sparkles } from "lucide-react";
 import { AccountMenu } from "@/components/auth/account-menu";
 import { ForgeMark } from "@/components/ui/forge-mark";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
@@ -14,7 +14,7 @@ const nav = [
   { href: "/docs", label: "Docs", icon: BookOpen },
 ];
 
-export function AppRail() {
+export function AppRail({ onNewProject }: { onNewProject?: () => void }) {
   const pathname = usePathname();
 
   return (
@@ -27,13 +27,15 @@ export function AppRail() {
         <ForgeMark />
       </Link>
 
-      <button
-        type="button"
+      <Link
+        href="/workspace"
+        onClick={onNewProject}
+        title="New project"
         aria-label="New project"
         className="mb-2 grid size-8 place-items-center rounded-md border border-forge-line bg-forge-soft text-forge transition-colors hover:bg-forge/20"
       >
         <Plus className="size-4" strokeWidth={2.25} />
-      </button>
+      </Link>
 
       {nav.map(({ href, label, icon: Icon }) => {
         const active = pathname === href;
@@ -58,14 +60,6 @@ export function AppRail() {
 
       <div className="mt-auto flex flex-col items-center gap-1">
         <ThemeToggle />
-        <button
-          type="button"
-          title="Settings"
-          aria-label="Settings"
-          className="grid size-8 place-items-center rounded-md text-faint transition-colors hover:bg-elevated hover:text-muted"
-        >
-          <Settings className="size-4" strokeWidth={1.9} />
-        </button>
         <AccountMenu />
       </div>
     </nav>

@@ -91,6 +91,7 @@ export function PreviewPane({
               key={t}
               type="button"
               onClick={() => onTabChange(t)}
+              aria-pressed={tab === t}
               className={cn(
                 "inline-flex h-6 items-center gap-1.5 rounded-sm px-2.5 text-xs font-medium capitalize transition-colors",
                 tab === t

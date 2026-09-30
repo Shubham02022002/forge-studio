@@ -71,7 +71,6 @@ export async function updateProject(
       data: {
         title: input.title,
         description: input.description,
-        status: input.status,
         isPublic: input.isPublic,
         ...(input.blueprint !== undefined && {
           blueprint: input.blueprint as Prisma.InputJsonValue,

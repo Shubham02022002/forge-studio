@@ -39,6 +39,7 @@ function SignedInMenu({ user }: { user: SessionUser }) {
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
   const root = useRef<HTMLDivElement>(null);
+  const trigger = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -48,7 +49,9 @@ function SignedInMenu({ user }: { user: SessionUser }) {
     }
 
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      trigger.current?.focus();
     }
 
     document.addEventListener("mousedown", onPointerDown);
@@ -75,6 +78,7 @@ function SignedInMenu({ user }: { user: SessionUser }) {
   return (
     <div ref={root} className="relative flex flex-col items-center">
       <button
+        ref={trigger}
         type="button"
         title="Account"
         aria-label="Account"
